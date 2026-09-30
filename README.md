@@ -1,10 +1,10 @@
 # PerfOverlay Supreme
 
+🇮🇹 **Italiano** · 🇬🇧 [English](README.en.md)
+
 **Overlay delle prestazioni in-game per Windows 10/11**: FPS con mini-grafico, frame time, 1% low, CPU, GPU, RAM, temperature e qualsiasi sensore di sistema, sopra al gioco. Parte con uno stile simile a quello di Steam; poi puoi modificarlo in un editor in stile RivaTuner oppure usare direttamente i preset dell'OverlayEditor di RTSS, compresi quelli avanzati come *TroyMetrics Benchmark Overlays*.
 
 Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare nulla nei giochi**.
-
-> *English:* a standalone performance overlay for Windows. It reads FPS from ETW, like PresentMon, and draws on a separate transparent window, so nothing is injected into games. It renders RivaTuner OverlayEditor presets and ships an in-app store for community RTSS overlays. UI in Italian.
 
 ## Funzioni
 
