@@ -67,6 +67,119 @@ LRESULT CALLBACK ButtonSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR
   return DefSubclassProc(h, msg, wp, lp);
 }
 
+// ------------------------------------------------------------ combobox
+void PaintCombo(HWND h, HDC target) {
+  RECT rc;
+  GetClientRect(h, &rc);
+  HDC dc = CreateCompatibleDC(target);
+  HBITMAP bmp = CreateCompatibleBitmap(target, rc.right, rc.bottom);
+  HGDIOBJ oldBmp = SelectObject(dc, bmp);
+  HBRUSH bg = CreateSolidBrush(static_cast<COLORREF>(reinterpret_cast<UINT_PTR>(GetPropW(h, kPropBg))));
+  FillRect(dc, &rc, bg);
+  DeleteObject(bg);
+
+  const float s = Scale(h);
+  COMBOBOXINFO ci{sizeof(ci)};
+  GetComboBoxInfo(h, &ci);
+  const bool editable = ci.hwndItem && ci.hwndItem != h;
+  const bool enabled = IsWindowEnabled(h);
+  const bool dropped = SendMessageW(h, CB_GETDROPPEDSTATE, 0, 0) != 0;
+  const HWND focus = GetFocus();
+  const bool focused = focus == h || (editable && focus == ci.hwndItem);
+  const bool hover = GetPropW(h, kPropHover) != nullptr;
+  const COLORREF border = !enabled              ? RGB(48, 48, 56)
+                          : dropped || focused  ? col::Accent
+                          : hover               ? Blend(col::Line, col::Accent, 0.55f)
+                                                : col::Line;
+  FillRound(dc, rc, int(6 * s), enabled ? col::Input : RGB(32, 32, 38), border);
+
+  if (!editable) {  // nella combobox modificabile il testo lo disegna il suo campo EDIT
+    std::wstring text;
+    const int sel = int(SendMessageW(h, CB_GETCURSEL, 0, 0));
+    if (sel >= 0) {
+      text.resize(size_t(SendMessageW(h, CB_GETLBTEXTLEN, WPARAM(sel), 0)) + 1);
+      text.resize(size_t(SendMessageW(h, CB_GETLBTEXT, WPARAM(sel), reinterpret_cast<LPARAM>(text.data()))));
+    }
+    HGDIOBJ oldFont = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(h, WM_GETFONT, 0, 0)));
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, enabled ? col::Text : col::Disabled);
+    RECT tr{int(9 * s), 0, rc.right - int(26 * s), rc.bottom};
+    DrawTextW(dc, text.c_str(), int(text.size()), &tr,
+              DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS | DT_NOPREFIX);
+    SelectObject(dc, oldFont);
+  }
+
+  // Freccia: verso il basso, verso l'alto con la tendina aperta.
+  Gdiplus::Graphics g(dc);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+  Gdiplus::Pen pen(Gp(!enabled ? col::Disabled : dropped || hover ? col::Accent : col::Sub), 1.7f * s);
+  pen.SetStartCap(Gdiplus::LineCapRound);
+  pen.SetEndCap(Gdiplus::LineCapRound);
+  pen.SetLineJoin(Gdiplus::LineJoinRound);
+  const float cx = rc.right - 15.0f * s, cy = rc.bottom / 2.0f, dx = 4.0f * s, dy = (dropped ? -2.2f : 2.2f) * s;
+  const Gdiplus::PointF pts[] = {{cx - dx, cy - dy}, {cx, cy + dy}, {cx + dx, cy - dy}};
+  g.DrawLines(&pen, pts, 3);
+
+  BitBlt(target, 0, 0, rc.right, rc.bottom, dc, 0, 0, SRCCOPY);
+  SelectObject(dc, oldBmp);
+  DeleteObject(bmp);
+  DeleteDC(dc);
+}
+
+LRESULT CALLBACK ComboSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR) {
+  switch (msg) {
+    case WM_PAINT: {
+      PAINTSTRUCT ps;
+      HDC dc = BeginPaint(h, &ps);
+      PaintCombo(h, dc);
+      EndPaint(h, &ps);
+      return 0;
+    }
+    case WM_PRINTCLIENT:
+      PaintCombo(h, reinterpret_cast<HDC>(wp));
+      return 0;
+    case WM_ERASEBKGND:
+      return 1;
+    case WM_MOUSEMOVE:
+      if (!GetPropW(h, kPropHover)) {
+        SetPropW(h, kPropHover, reinterpret_cast<HANDLE>(1));
+        TrackLeave(h);
+        InvalidateRect(h, nullptr, FALSE);
+      }
+      break;
+    case WM_MOUSELEAVE:
+      RemovePropW(h, kPropHover);
+      InvalidateRect(h, nullptr, FALSE);
+      break;
+    // Dopo questi messaggi la combobox nativa si ridisegnerebbe da sola: ridisegno con il tema.
+    case WM_SETFOCUS:
+    case WM_KILLFOCUS:
+    case WM_ENABLE:
+    case WM_SETTEXT:
+    case WM_KEYDOWN:
+    case WM_CHAR:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_MOUSEWHEEL:
+    case WM_CAPTURECHANGED:
+    case WM_COMMAND:  // notifiche della tendina (chiusura, selezione)
+    case CB_SETCURSEL:
+    case CB_SHOWDROPDOWN:
+    case CB_RESETCONTENT:
+    case CB_SELECTSTRING: {
+      const LRESULT r = DefSubclassProc(h, msg, wp, lp);
+      InvalidateRect(h, nullptr, FALSE);
+      return r;
+    }
+    case WM_NCDESTROY:
+      RemovePropW(h, kPropBg);
+      RemovePropW(h, kPropHover);
+      RemoveWindowSubclass(h, ComboSubclass, 0);
+      break;
+  }
+  return DefSubclassProc(h, msg, wp, lp);
+}
+
 // ------------------------------------------------------------ checkbox
 struct CheckState {
   bool checked = false;
@@ -264,6 +377,12 @@ void MakeButton(HWND btn, COLORREF background, bool primary) {
   SetPropW(btn, kPropBg, reinterpret_cast<HANDLE>(static_cast<UINT_PTR>(background)));
   if (primary) SetPropW(btn, kPropPrimary, reinterpret_cast<HANDLE>(1));
   SetWindowSubclass(btn, ButtonSubclass, 0, 0);
+}
+
+void MakeCombo(HWND combo, COLORREF background) {
+  SetPropW(combo, kPropBg, reinterpret_cast<HANDLE>(static_cast<UINT_PTR>(background)));
+  SetWindowSubclass(combo, ComboSubclass, 0, 0);
+  InvalidateRect(combo, nullptr, FALSE);
 }
 
 void DrawButton(const DRAWITEMSTRUCT* dis, const COLORREF* swatch) {

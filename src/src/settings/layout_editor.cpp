@@ -882,10 +882,12 @@ void Build() {
                               E->inst, nullptr);
   HWND res = Make(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 804, 52, 204, 240, IDC_RES);
   ApplyDarkControlTheme(res, L"DarkMode_CFD");
+  ui::MakeCombo(res, ui::col::Bg);
   for (const auto& r : E->resolutions) SendMessageW(res, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(r.label.c_str()));
   ComboBox_SetCurSel(res, E->res);
   HWND fmt = Make(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 1016, 52, 204, 240, IDC_FORMAT);
   ApplyDarkControlTheme(fmt, L"DarkMode_CFD");
+  ui::MakeCombo(fmt, ui::col::Bg);
   for (int i = 0; i < int(std::size(kLayoutFormats)); ++i) {
     SendMessageW(fmt, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(kLayoutFormats[i].label));
     if (E->fmt == kLayoutFormats[i].id) ComboBox_SetCurSel(fmt, i);
@@ -900,6 +902,7 @@ void Build() {
   Make(ui::kCheckClass, T(L"Aggancia alla griglia"), WS_TABSTOP, 1254, 728, 196, 24, IDC_SNAP);
   HWND grid = Make(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 1360, 761, 86, 200, IDC_GRID);
   ApplyDarkControlTheme(grid, L"DarkMode_CFD");
+  ui::MakeCombo(grid, ui::col::Panel);
   for (const wchar_t* g : kGridNames) SendMessageW(grid, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(g));
   Button(IDC_RESET, T(L"Ripristina disposizione"), 1254, 794, 192, 28, ui::col::Panel);
   Button(IDC_SENSORS, T(L"Sensori di sistema..."), 20, 848, 210, 32, ui::col::Bg);

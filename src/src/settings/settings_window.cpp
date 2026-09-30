@@ -194,6 +194,7 @@ void Combo(int id, int x, int y, int w, const wchar_t* const (&items)[N], bool e
   SendMessageW(c, CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));  // campo alto quanto le altre righe
   SendMessageW(c, CB_SETITEMHEIGHT, 0, S(22));
   for (const wchar_t* it : items) SendMessageW(c, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(it));
+  ui::MakeCombo(c, ui::col::Panel);
 }
 
 std::wstring GetText(int id) {
@@ -919,6 +920,7 @@ void BuildUi() {
   ApplyDarkControlTheme(Item(IDC_FORCED), L"DarkMode_CFD");
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, 0, S(22));
+  ui::MakeCombo(Item(IDC_FORCED), ui::col::Panel);
   Label(L"Lingua / Language", 36, grow(3), 120);
   Combo(IDC_LANG, 160, grow(3), 156, kLangNames);
   Label(T(L"Mostra / nascondi"), 344, grow(0), 136);
@@ -956,9 +958,18 @@ void Paint(HDC dc, const RECT& client) {
   DrawTextAt(dc, kAppTitleUpper, SR({76, 14, 600, 46}), g.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
   DrawTextAt(dc, T(L"Overlay prestazioni per i giochi  ·  profili per gioco  ·  export / import"),
              SR({77, 46, 700, 68}), g.font, ui::col::Sub, DT_LEFT | DT_TOP);
+  // Stato dell'overlay: badge arrotondato con pallino, verde se in esecuzione.
   const int right = g.monitorRunning ? 980 : 838;
-  DrawTextAt(dc, g.monitorRunning ? T(L"●  Overlay in esecuzione") : T(L"●  Overlay non avviato"), SR({600, 26, right, 56}),
-             g.fontBold, g.monitorRunning ? ui::col::Good : ui::col::Bad, DT_RIGHT | DT_VCENTER);
+  const std::wstring state = g.monitorRunning ? T(L"Overlay in esecuzione") : T(L"Overlay non avviato");
+  const COLORREF stateColor = g.monitorRunning ? ui::col::Good : ui::col::Bad;
+  SelectObject(dc, g.fontBold);
+  SIZE ts{};
+  GetTextExtentPoint32W(dc, state.c_str(), int(state.size()), &ts);
+  const RECT pill{S(right) - ts.cx - S(44), S(27), S(right), S(57)};
+  ui::FillRound(dc, pill, S(15), ui::Blend(ui::col::Bg, stateColor, 0.12f), ui::Blend(ui::col::Bg, stateColor, 0.45f));
+  ui::FillCircle(dc, pill.left + S(17), (pill.top + pill.bottom) / 2, S(4), stateColor, stateColor);
+  DrawTextAt(dc, state, {pill.left + S(29), pill.top, pill.right - S(12), pill.bottom}, g.fontBold, stateColor,
+             DT_LEFT | DT_VCENTER);
 
   for (const auto& p : g_panels) {
     const RECT r = SR(p.r);

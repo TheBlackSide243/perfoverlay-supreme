@@ -36,4 +36,8 @@ void FillCircle(HDC dc, int cx, int cy, int radius, COLORREF fill, COLORREF bord
 void MakeButton(HWND btn, COLORREF background, bool primary);
 void DrawButton(const DRAWITEMSTRUCT* dis, const COLORREF* swatch = nullptr);
 
+// Combobox con lo stesso aspetto dei campi di testo: cornice arrotondata, bordo d'accento con hover,
+// focus o tendina aperta, freccia disegnata. background = colore dietro il controllo.
+void MakeCombo(HWND combo, COLORREF background);
+
 }  // namespace po::ui
