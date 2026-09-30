@@ -1,0 +1,14 @@
+{
+  // Formato di %APPDATA%\PerfOverlay Supreme\games.json (sono ammessi i commenti).
+  // Di solito non serve modificarlo a mano: Impostazioni > "Lista giochi...".
+  "known": [
+    { "process": "cyberpunk2077.exe" },
+    { "process": "eldenring.exe" },
+    // "window": sottostringa del titolo finestra, utile per eseguibili generici
+    { "process": "javaw.exe", "window": "Minecraft" },
+    // "*": qualsiasi processo (utile se il nome del processo non è leggibile), riconoscimento solo dal titolo
+    { "process": "*", "window": "My Custom Game" }
+  ],
+  "learned": [],
+  "exclude": [ "chrome.exe", "msedge.exe", "firefox.exe", "code.exe", "vlc.exe" ]
+}
