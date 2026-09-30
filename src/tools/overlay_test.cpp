@@ -17,7 +17,10 @@
 #include <memory>
 #include <string>
 
-#include "common/resources.h"
+#include "common/resources.h"
+#include "common/i18n.h"
+
+using po::TF;
 
 using Microsoft::WRL::ComPtr;
 
@@ -337,7 +340,7 @@ struct App {
 constexpr int kLimits[] = {0, 30, 60, 144};
 
 void ShowError(const wchar_t* what) {
-  MessageBoxW(g.hwnd, std::format(L"Impossibile inizializzare {}.", what).c_str(), L"PerfOverlay Test", MB_ICONERROR);
+  MessageBoxW(g.hwnd, TF(L"Impossibile inizializzare {}.", what).c_str(), L"PerfOverlay Test", MB_ICONERROR);
 }
 
 bool CreateRenderer(bool dx12) {
@@ -480,7 +483,7 @@ int RunOverlayTest(HINSTANCE inst, const wchar_t* cmd, int show) {
     if (since >= 0.5) {
       const int lim = kLimits[g.limitIdx];
       SetWindowTextW(g.hwnd,
-                     std::format(L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  carico {}/10  ·  VSync {}  ·  "
+                     TF(L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  carico {}/10  ·  VSync {}  ·  "
                                  L"limite {}  ·  {}   [F1 DX11  F2 DX12  V  L  Su/Giù  F11  Esc]",
                                  g.r->Name(), int(std::lround(frames / since)), g.w, g.h, g.load,
                                  g.vsync ? L"ON" : L"OFF", lim ? std::to_wstring(lim) : std::wstring(L"off"),

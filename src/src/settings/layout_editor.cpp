@@ -17,6 +17,7 @@
 #include "common/util.h"
 #include "settings/sensor_browser.h"
 #include "settings/theme.h"
+#include "common/i18n.h"
 
 #pragma comment(lib, "msimg32.lib")  // GradientFill
 
@@ -46,7 +47,7 @@ enum : int {
   IDC_FIELD = 2050,  // + indice campo (max kMaxFieldsPerElement)
 };
 
-constexpr const wchar_t* kNames[] = {L"FPS", L"Grafico FPS", L"Frame time", L"CPU", L"GPU", L"RAM", L"Batteria"};
+const wchar_t* const kNames[] = {L"FPS", T(L"Grafico FPS"), L"Frame time", L"CPU", L"GPU", L"RAM", T(L"Batteria")};
 constexpr int kElementCount = int(std::size(kNames));
 constexpr int kGridSteps[] = {5, 10, 20, 40};
 constexpr const wchar_t* kGridNames[] = {L"5 px", L"10 px", L"20 px", L"40 px"};
@@ -145,12 +146,12 @@ std::wstring ElementName(int i) {
     std::wstring t = ToWide(E->p.rtss.layers[size_t(i)].text);
     std::replace(t.begin(), t.end(), L'\n', L' ');
     if (t.size() > 18) t = t.substr(0, 17) + L"…";
-    return std::format(L"Testo {}: {}", i + 1, t);
+    return TF(L"Testo {}: {}", i + 1, t);
   }
   if (i >= 0 && i < kElementCount) return kNames[i];
   if (i < 0 || i >= int(Items().size())) return L"";
   const SensorPick* sp = PickOf(Items()[size_t(i)].element);
-  return sp ? L"Sensore: " + ToWide(sp->label.empty() ? sp->id : sp->label) : L"Sensore";
+  return sp ? T(L"Sensore: ") + ToWide(sp->label.empty() ? sp->id : sp->label) : T(L"Sensore");
 }
 
 bool& Visible(Profile& p, const std::string& el) {
@@ -229,7 +230,7 @@ std::vector<Piece> Sample(const Profile& p, const std::string& el) {
     if (on("p99")) add({label(v.empty() ? L"P99 " : L"  P99 ", p.colors.fps), {L"9.1", c}});
     if (on("p95") || on("p99")) add({{L"ms", c, 0.72f}});
     if (on("stutter")) add({label(v.empty() ? L"ST " : L"  ST ", p.colors.fps), {L"0.4%", c}});
-    if (v.empty()) add({{L"(nessun campo)", RGB(150, 150, 162), 0.8f}});
+    if (v.empty()) add({{T(L"(nessun campo)"), RGB(150, 150, 162), 0.8f}});
   } else if (el == "cpu") {
     const COLORREF c = val(p.colors.cpu);
     add({label(L"CPU ", p.colors.cpu)});
@@ -255,7 +256,7 @@ std::vector<Piece> Sample(const Profile& p, const std::string& el) {
     const COLORREF c = val(p.colors.battery);
     add({label(L"BAT ", p.colors.battery)});
     if (on("percent")) add({{L"85%", c}});
-    if (on("state")) add({{L" ▼ a batteria", c, 0.72f}});
+    if (on("state")) add({{T(L" ▼ a batteria"), c, 0.72f}});
   }
   return v;
 }
@@ -608,7 +609,7 @@ void UpdateFieldChecks() {
   for (int i = 0; i < kMaxFieldsPerElement; ++i) {
     HWND c = Item(IDC_FIELD + i);
     if (i < int(fields.size())) {
-      SetWindowTextW(c, fields[size_t(i)]->label);
+      SetWindowTextW(c, T(fields[size_t(i)]->label));
       Button_SetCheck(c, FieldOn(E->p, el, fields[size_t(i)]->key) ? BST_CHECKED : BST_UNCHECKED);
       ShowWindow(c, SW_SHOWNA);
     } else {
@@ -896,13 +897,13 @@ void Build() {
   Edit(IDC_ESCALE, 1360, 454, 86);
   for (int i = 0; i < kMaxFieldsPerElement; ++i)
     Make(ui::kCheckClass, L"", WS_TABSTOP, 1254, 540 + i * 26, 196, 24, IDC_FIELD + i);
-  Make(ui::kCheckClass, L"Aggancia alla griglia", WS_TABSTOP, 1254, 728, 196, 24, IDC_SNAP);
+  Make(ui::kCheckClass, T(L"Aggancia alla griglia"), WS_TABSTOP, 1254, 728, 196, 24, IDC_SNAP);
   HWND grid = Make(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 1360, 761, 86, 200, IDC_GRID);
   ApplyDarkControlTheme(grid, L"DarkMode_CFD");
   for (const wchar_t* g : kGridNames) SendMessageW(grid, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(g));
-  Button(IDC_RESET, L"Ripristina disposizione", 1254, 794, 192, 28, ui::col::Panel);
-  Button(IDC_SENSORS, L"Sensori di sistema...", 20, 848, 210, 32, ui::col::Bg);
-  Button(IDC_CANCEL, L"Annulla", 1240, 848, 104, 32, ui::col::Bg);
+  Button(IDC_RESET, T(L"Ripristina disposizione"), 1254, 794, 192, 28, ui::col::Panel);
+  Button(IDC_SENSORS, T(L"Sensori di sistema..."), 20, 848, 210, 32, ui::col::Bg);
+  Button(IDC_CANCEL, T(L"Annulla"), 1240, 848, 104, 32, ui::col::Bg);
   Button(IDC_OK, L"OK", 1356, 848, 104, 32, ui::col::Bg, true);
 
   if (E->rtss) {  // il preset RTSS ha un solo layout per tutti i formati
@@ -928,12 +929,12 @@ void DrawTextAt(HDC dc, const std::wstring& t, RECT r, HFONT f, COLORREF c, UINT
 void PaintEditor(HDC dc, const RECT& client) {
   FillRect(dc, &client, E->brBg);
   SetBkMode(dc, TRANSPARENT);
-  DrawTextAt(dc, E->rtss ? L"EDITOR PRESET RTSS" : L"EDITOR LAYOUT", SR({20, 10, 600, 38}), E->fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
+  DrawTextAt(dc, E->rtss ? T(L"EDITOR PRESET RTSS") : T(L"EDITOR LAYOUT"), SR({20, 10, 600, 38}), E->fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
   DrawTextAt(dc,
-             L"Trascina  ·  frecce 1 px (Shift = griglia)  ·  Alt = senza snap  ·  PagSu/Giù = blocco  ·  "
-             L"Ctrl+rotellina = zoom",
+             T(L"Trascina  ·  frecce 1 px (Shift = griglia)  ·  Alt = senza snap  ·  PagSu/Giù = blocco  ·  "
+             L"Ctrl+rotellina = zoom"),
              SR({21, 40, 1460, 60}), E->font, ui::col::Sub, DT_LEFT | DT_TOP);
-  DrawTextAt(dc, L"Pixel in", SR({740, 52, 800, 80}), E->font, ui::col::Sub, DT_RIGHT | DT_VCENTER);
+  DrawTextAt(dc, T(L"Pixel in"), SR({740, 52, 800, 80}), E->font, ui::col::Sub, DT_RIGHT | DT_VCENTER);
 
   auto section = [&](const wchar_t* title, RECT r) {
     const RECT s = SR(r);
@@ -943,22 +944,22 @@ void PaintEditor(HDC dc, const RECT& client) {
   };
   const bool own = E->fmt != kDefaultLayoutFormat;
   DrawTextAt(dc,
-             std::format(L"TELA {} x {}  ·  FORMATO {}{}  ·  ZOOM {}% (0 = intera, tasto centrale = sposta)", ResW(), ResH(), ToWide(E->fmt),
-                         own ? L" (dedicato)" : L" (base)",
+             TF(L"TELA {} x {}  ·  FORMATO {}{}  ·  ZOOM {}% (0 = intera, tasto centrale = sposta)", ResW(), ResH(), ToWide(E->fmt),
+                         own ? T(L" (dedicato)") : T(L" (base)"),
                          int(std::lround(E->zoom * 100))),
              SR({24, 62, 736, 80}), E->fontSection, ui::col::Sub, DT_LEFT | DT_BOTTOM);
   RECT border = CanvasRect();
   InflateRect(&border, 1, 1);
   ui::FillRound(dc, border, S(2), ui::col::Line, ui::col::Line, 0);
 
-  section(E->rtss ? L"PRESET RTSS" : L"ELEMENTI", {1240, 84, 1460, 300});
+  section(E->rtss ? L"PRESET RTSS" : T(L"ELEMENTI"), {1240, 84, 1460, 300});
   if (E->rtss) {
     DrawTextAt(dc, ToWide(E->p.rtss.name), SR({1254, 96, 1450, 122}), E->fontBold, ui::col::Text,
                DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
     RECT info = SR({1254, 128, 1450, 292});
     SelectObject(dc, E->font);
     SetTextColor(dc, ui::col::Sub);
-    const std::wstring t = std::format(
+    const std::wstring t = TF(
         L"{} testi. Clicca un testo sulla tela e trascinalo, oppure usa le frecce.\n\nPosizione dell'intero "
         L"overlay, font e sfondo: impostazioni del profilo.",
         E->p.rtss.layers.size());
@@ -971,39 +972,39 @@ void PaintEditor(HDC dc, const RECT& client) {
   }
   DrawTextAt(dc,
              E->p.sensors.empty()
-                 ? std::wstring(L"Temperature, ventole, dischi, rete...: aggiungili con \"Sensori di sistema\" "
-                                L"e spostali qui come gli altri blocchi.")
-                 : std::format(L"{} {}: sono blocchi sulla tela (clic per selezionarli, PagSu/PagGiù per scorrerli).",
-                               E->p.sensors.size(), E->p.sensors.size() == 1 ? L"sensore aggiunto" : L"sensori aggiunti"),
+                 ? std::wstring(T(L"Temperature, ventole, dischi, rete...: aggiungili con \"Sensori di sistema\" "
+                                L"e spostali qui come gli altri blocchi."))
+                 : TF(L"{} {}: sono blocchi sulla tela (clic per selezionarli, PagSu/PagGiù per scorrerli).",
+                               E->p.sensors.size(), E->p.sensors.size() == 1 ? T(L"sensore aggiunto") : T(L"sensori aggiunti")),
              SR({244, 848, 1220, 880}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
 
-  section(L"BLOCCO SELEZIONATO", {1240, 340, 1460, 488});
+  section(T(L"BLOCCO SELEZIONATO"), {1240, 340, 1460, 488});
   DrawTextAt(dc, ElementName(E->sel), SR({1254, 352, 1450, 380}), E->fontBold, ui::col::Text,
              DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
   DrawTextAt(dc, L"X (px)", SR({1254, 386, 1356, 414}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   DrawTextAt(dc, L"Y (px)", SR({1254, 420, 1356, 448}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
-  DrawTextAt(dc, L"Dimensione %", SR({1254, 454, 1356, 482}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
+  DrawTextAt(dc, T(L"Dimensione %"), SR({1254, 454, 1356, 482}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
 
-  section(L"CAMPI DEL BLOCCO", {1240, 528, 1460, 676});
+  section(T(L"CAMPI DEL BLOCCO"), {1240, 528, 1460, 676});
   if (E->rtss) {
     RECT tr = SR({1254, 540, 1450, 668});
     SelectObject(dc, E->font);
     SetTextColor(dc, ui::col::Sub);
-    const std::wstring raw = L"Testo nel preset:\n" + ToWide(E->p.rtss.layers[size_t(E->sel)].text);
+    const std::wstring raw = T(L"Testo nel preset:\n") + ToWide(E->p.rtss.layers[size_t(E->sel)].text);
     DrawTextW(dc, raw.c_str(), -1, &tr, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS);
   } else if (const SensorPick* sp = PickOf(Items()[size_t(E->sel)].element)) {
     DrawTextAt(dc, ToWide(sp->group.empty() ? "Sensore" : sp->group), SR({1254, 540, 1450, 566}), E->font,
                ui::col::Text, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
-    DrawTextAt(dc, L"Etichetta e rimozione:", SR({1254, 574, 1450, 600}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
-    DrawTextAt(dc, L"\"Sensori di sistema...\"", SR({1254, 600, 1450, 626}), E->font, ui::col::Sub,
+    DrawTextAt(dc, T(L"Etichetta e rimozione:"), SR({1254, 574, 1450, 600}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
+    DrawTextAt(dc, T(L"\"Sensori di sistema...\""), SR({1254, 600, 1450, 626}), E->font, ui::col::Sub,
                DT_LEFT | DT_VCENTER);
   } else if (FieldsOf(Items()[size_t(E->sel)].element).empty()) {
-    DrawTextAt(dc, L"Il grafico non ha campi da scegliere.", SR({1254, 540, 1450, 566}), E->font, ui::col::Sub,
+    DrawTextAt(dc, T(L"Il grafico non ha campi da scegliere."), SR({1254, 540, 1450, 566}), E->font, ui::col::Sub,
                DT_LEFT | DT_VCENTER);
   }
 
-  section(L"GRIGLIA", {1240, 716, 1460, 828});
-  DrawTextAt(dc, L"Passo", SR({1254, 761, 1356, 789}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
+  section(T(L"GRIGLIA"), {1240, 716, 1460, 828});
+  DrawTextAt(dc, T(L"Passo"), SR({1254, 761, 1356, 789}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
 
   for (const auto& [id, r] : E->frames)
     ui::FillRound(dc, SR(r), S(6), ui::col::Input, E->focusedEdit == id ? ui::col::Accent : ui::col::Line);
@@ -1237,7 +1238,7 @@ bool RunLayoutEditor(HWND owner, HINSTANCE inst, HFONT uiFont, Profile& profile)
     x = std::clamp(x, int(om.rcWork.left), std::max(int(om.rcWork.left), int(om.rcWork.right) - w));
     y = std::clamp(y, int(om.rcWork.top), std::max(int(om.rcWork.top), int(om.rcWork.bottom) - h));
   }
-  ed.wnd = CreateWindowExW(0, kEditorClass, ((ed.rtss ? L"Editor preset RTSS - " : L"Editor layout - ") + ToWide(profile.name)).c_str(), style, x, y, w, h,
+  ed.wnd = CreateWindowExW(0, kEditorClass, ((ed.rtss ? T(L"Editor preset RTSS - ") : T(L"Editor layout - ")) + ToWide(profile.name)).c_str(), style, x, y, w, h,
                            owner, nullptr, inst, nullptr);
   if (!ed.wnd) {
     E = nullptr;

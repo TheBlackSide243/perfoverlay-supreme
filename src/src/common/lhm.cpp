@@ -16,6 +16,7 @@
 #include "common/branding.h"
 #include "common/log.h"
 #include "common/util.h"
+#include "common/i18n.h"
 
 #pragma comment(lib, "urlmon.lib")
 #pragma comment(lib, "wininet.lib")
@@ -80,7 +81,7 @@ bool InstallLhm(std::wstring& error) {
   constexpr wchar_t kApi[] = L"https://api.github.com/repos/LibreHardwareMonitor/LibreHardwareMonitor/releases/latest";
   DeleteUrlCacheEntryW(kApi);
   if (FAILED(URLDownloadToFileW(nullptr, kApi, json.c_str(), 0, nullptr))) {
-    error = L"GitHub non raggiungibile (controlla la connessione).";
+    error = T(L"GitHub non raggiungibile (controlla la connessione).");
     return false;
   }
   std::string url, tag;
@@ -93,11 +94,11 @@ bool InstallLhm(std::wstring& error) {
   }
   fs::remove(json, ec);
   if (url.empty()) {
-    error = L"Pacchetto di LibreHardwareMonitor non trovato su GitHub.";
+    error = T(L"Pacchetto di LibreHardwareMonitor non trovato su GitHub.");
     return false;
   }
   if (FAILED(URLDownloadToFileW(nullptr, ToWide(url).c_str(), zip.c_str(), 0, nullptr))) {
-    error = L"Download di LibreHardwareMonitor non riuscito.";
+    error = T(L"Download di LibreHardwareMonitor non riuscito.");
     return false;
   }
   wchar_t sys[MAX_PATH];
@@ -106,7 +107,7 @@ bool InstallLhm(std::wstring& error) {
   STARTUPINFOW si{sizeof(si)};
   PROCESS_INFORMATION pi{};
   if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-    error = L"Impossibile estrarre LibreHardwareMonitor.";
+    error = T(L"Impossibile estrarre LibreHardwareMonitor.");
     return false;
   }
   WaitForSingleObject(pi.hProcess, 120000);
@@ -114,7 +115,7 @@ bool InstallLhm(std::wstring& error) {
   CloseHandle(pi.hProcess);
   fs::remove(zip, ec);
   if (!LhmInstalled()) {
-    error = L"Pacchetto scaricato ma LibreHardwareMonitor.exe non trovato.";
+    error = T(L"Pacchetto scaricato ma LibreHardwareMonitor.exe non trovato.");
     return false;
   }
   WriteConfig();

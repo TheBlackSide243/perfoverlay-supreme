@@ -33,7 +33,8 @@ add_library(po_common STATIC
   src/common/darkmode.cpp
   src/common/rtss_preset.cpp
   src/common/sensor_feed.cpp
-  src/common/lhm.cpp)
+  src/common/lhm.cpp
+  src/common/i18n.cpp)
 target_include_directories(po_common PUBLIC src)
 target_link_libraries(po_common PUBLIC nlohmann_json::nlohmann_json shell32 ole32 advapi32 user32 dwmapi uxtheme urlmon wininet)
 

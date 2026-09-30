@@ -331,7 +331,8 @@ void to_json(json& j, const GlobalConfig& c) {
            {"autostart", c.autostart},
            {"autoLearnGames", c.autoLearnGames},
            {"forcedProfile", c.forcedProfile},
-           {"desktopProfile", c.desktopProfile}};
+           {"desktopProfile", c.desktopProfile},
+           {"language", c.language}};
 }
 void from_json(const json& j, GlobalConfig& c) {
   Get(j, "refreshMs", c.refreshMs);
@@ -345,6 +346,7 @@ void from_json(const json& j, GlobalConfig& c) {
   Get(j, "autoLearnGames", c.autoLearnGames);
   Get(j, "forcedProfile", c.forcedProfile);
   Get(j, "desktopProfile", c.desktopProfile);
+  Get(j, "language", c.language);
   Sanitize(c);
 }
 

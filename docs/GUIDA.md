@@ -13,6 +13,7 @@
 - [Temperatura CPU](#temperatura-cpu)
 - [Prova dell'overlay (DirectX 11 / 12)](#prova-delloverlay-directx-11--12)
 - [Hotkey](#hotkey)
+- [Lingua](#lingua)
 - [Amministratore e FPS](#amministratore-e-fps)
 - [Dati e log](#dati-e-log)
 - [Limiti](#limiti)
@@ -161,6 +162,10 @@ Per aprire la scena di prova usa Tray › **"Test overlay (DirectX 11/12)"** opp
 | Ctrl+Shift+F | modalità solo FPS |
 
 Si cambiano da Impostazioni › "Cambia" accanto alla hotkey.
+
+## Lingua
+
+Impostazioni › Impostazioni globali › **"Lingua / Language"**: Italiano o English. Le impostazioni si riaprono subito nella nuova lingua, e l'overlay (menu della tray e nomi dei sensori) si aggiorna da solo. La prima volta la lingua segue quella di Windows.
 
 ## Amministratore e FPS
 

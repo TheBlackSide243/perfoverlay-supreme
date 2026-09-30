@@ -204,6 +204,7 @@ struct GlobalConfig {
   bool autoLearnGames = true;
   std::string forcedProfile;          // vuoto = selezione automatica
   std::string desktopProfile;         // profilo mostrato sul desktop (quello selezionato nelle impostazioni)
+  std::string language;               // "it" / "en"; vuoto = lingua di Windows
 };
 
 struct GameList {

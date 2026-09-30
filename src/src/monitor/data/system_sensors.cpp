@@ -10,7 +10,8 @@
 
 #include "common/log.h"
 #include "common/util.h"
-#include "monitor/data/pdh_util.h"
+#include "monitor/data/pdh_util.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -102,37 +103,37 @@ void SystemSensors::Collect(const CpuStats& cpu, const GpuStats& gpu, bool gpuFr
 
   // ---- CPU
   const std::string cpuGroup = cpu.name.empty() ? "CPU" : cpu.name;
-  if (cpu.usage) add("cpu:usage", cpuGroup, "Utilizzo totale", "%", *cpu.usage);
-  if (cpu.topCoreUsage) add("cpu:topcore", cpuGroup, "Core più carico", "%", *cpu.topCoreUsage);
-  if (cpu.freqGHz) add("cpu:freq", cpuGroup, "Frequenza media", "MHz", *cpu.freqGHz * 1000.0);
-  if (cpu.maxFreqGHz) add("cpu:maxfreq", cpuGroup, "Frequenza massima", "MHz", *cpu.maxFreqGHz * 1000.0);
+  if (cpu.usage) add("cpu:usage", cpuGroup, TU("Utilizzo totale"), "%", *cpu.usage);
+  if (cpu.topCoreUsage) add("cpu:topcore", cpuGroup, TU("Core più carico"), "%", *cpu.topCoreUsage);
+  if (cpu.freqGHz) add("cpu:freq", cpuGroup, TU("Frequenza media"), "MHz", *cpu.freqGHz * 1000.0);
+  if (cpu.maxFreqGHz) add("cpu:maxfreq", cpuGroup, TU("Frequenza massima"), "MHz", *cpu.maxFreqGHz * 1000.0);
   for (const auto& [core, u] : cpu.coreUsage)
-    add(std::format("cpu:core{}:usage", core), cpuGroup, std::format("Core {} utilizzo", core), "%", u);
+    add(std::format("cpu:core{}:usage", core), cpuGroup, TFU("Core {} utilizzo", core), "%", u);
   for (const auto& [core, ghz] : cpu.coreGHz)
-    add(std::format("cpu:core{}:clock", core), cpuGroup, std::format("Core {} frequenza", core), "MHz", ghz * 1000.0);
+    add(std::format("cpu:core{}:clock", core), cpuGroup, TFU("Core {} frequenza", core), "MHz", ghz * 1000.0);
 
   // ---- GPU (da Windows; per le NVIDIA i dati completi arrivano da NVML)
   if (!gpuFromNvml && !gpu.name.empty()) {
-    if (gpu.usage) add("gpu:usage", gpu.name, "Utilizzo", "%", *gpu.usage);
-    if (gpu.vramUsedGB) add("gpu:vramused", gpu.name, "VRAM usata", "GB", *gpu.vramUsedGB);
-    if (gpu.vramTotalGB) add("gpu:vramtotal", gpu.name, "VRAM totale", "GB", *gpu.vramTotalGB);
-    if (gpu.tempC) add("gpu:temp", gpu.name, "Temperatura", "°C", *gpu.tempC);
-    if (gpu.clockMHz) add("gpu:clock", gpu.name, "Frequenza", "MHz", *gpu.clockMHz);
-    if (gpu.powerW) add("gpu:power", gpu.name, "Consumo", "W", *gpu.powerW);
+    if (gpu.usage) add("gpu:usage", gpu.name, TU("Utilizzo"), "%", *gpu.usage);
+    if (gpu.vramUsedGB) add("gpu:vramused", gpu.name, TU("VRAM usata"), "GB", *gpu.vramUsedGB);
+    if (gpu.vramTotalGB) add("gpu:vramtotal", gpu.name, TU("VRAM totale"), "GB", *gpu.vramTotalGB);
+    if (gpu.tempC) add("gpu:temp", gpu.name, TU("Temperatura"), "°C", *gpu.tempC);
+    if (gpu.clockMHz) add("gpu:clock", gpu.name, TU("Frequenza"), "MHz", *gpu.clockMHz);
+    if (gpu.powerW) add("gpu:power", gpu.name, TU("Consumo"), "W", *gpu.powerW);
   }
 
   // ---- Memoria
-  const std::string memGroup = "Memoria di sistema";
+  const std::string memGroup = TU("Memoria di sistema");
   MEMORYSTATUSEX ms{sizeof(ms)};
   if (GlobalMemoryStatusEx(&ms)) {
-    add("ram:used", memGroup, "RAM usata", "GB", (ms.ullTotalPhys - ms.ullAvailPhys) / kGB);
-    add("ram:free", memGroup, "RAM disponibile", "GB", ms.ullAvailPhys / kGB);
-    add("ram:total", memGroup, "RAM totale", "GB", ms.ullTotalPhys / kGB);
-    add("ram:load", memGroup, "RAM usata %", "%", ms.dwMemoryLoad);
-    add("ram:commit", memGroup, "Memoria impegnata", "GB", (ms.ullTotalPageFile - ms.ullAvailPageFile) / kGB);
-    add("ram:commitlimit", memGroup, "Limite memoria impegnata", "GB", ms.ullTotalPageFile / kGB);
+    add("ram:used", memGroup, TU("RAM usata"), "GB", (ms.ullTotalPhys - ms.ullAvailPhys) / kGB);
+    add("ram:free", memGroup, TU("RAM disponibile"), "GB", ms.ullAvailPhys / kGB);
+    add("ram:total", memGroup, TU("RAM totale"), "GB", ms.ullTotalPhys / kGB);
+    add("ram:load", memGroup, TU("RAM usata %"), "%", ms.dwMemoryLoad);
+    add("ram:commit", memGroup, TU("Memoria impegnata"), "GB", (ms.ullTotalPageFile - ms.ullAvailPageFile) / kGB);
+    add("ram:commitlimit", memGroup, TU("Limite memoria impegnata"), "GB", ms.ullTotalPageFile / kGB);
   }
-  if (ram.speedMTs > 0) add("ram:speed", memGroup, "Velocità RAM", "MT/s", ram.speedMTs);
+  if (ram.speedMTs > 0) add("ram:speed", memGroup, TU("Velocità RAM"), "MT/s", ram.speedMTs);
 
   if (query_ && PdhCollectQueryData(query_) == ERROR_SUCCESS) {
     // ---- Dischi: istanze "0 C:", "1 D: E:"
@@ -150,16 +151,16 @@ void SystemSensors::Collect(const CpuStats& cpu, const GpuStats& gpu, bool gpuFr
       const std::string letters = space != std::wstring::npos ? ToUtf8(inst.substr(space + 1)) : "";
       DiskInfo& di = disks_[num];
       ReadDiskTemps(num, di);
-      std::string group = std::format("Disco {}", num);
+      std::string group = TFU("Disco {}", num);
       if (!di.name.empty()) group += " · " + di.name;
       if (!letters.empty()) group += " (" + letters + ")";
       const std::string pre = std::format("disk:{}:", num);
       for (size_t t = 0; t < di.tempsC.size(); ++t)
         add(pre + (t == 0 ? std::string("temp") : std::format("temp{}", t)), group,
-            t == 0 ? std::string("Temperatura") : std::format("Temperatura sensore {}", t), "°C", di.tempsC[t]);
-      add(pre + "active", group, "Attività", "%", std::clamp(100.0 - idlePct, 0.0, 100.0));
-      if (auto v = find(rd, inst)) add(pre + "read", group, "Lettura", "MB/s", *v / (1024.0 * 1024.0));
-      if (auto v = find(wr, inst)) add(pre + "write", group, "Scrittura", "MB/s", *v / (1024.0 * 1024.0));
+            t == 0 ? std::string(TU("Temperatura")) : TFU("Temperatura sensore {}", t), "°C", di.tempsC[t]);
+      add(pre + "active", group, TU("Attività"), "%", std::clamp(100.0 - idlePct, 0.0, 100.0));
+      if (auto v = find(rd, inst)) add(pre + "read", group, TU("Lettura"), "MB/s", *v / (1024.0 * 1024.0));
+      if (auto v = find(wr, inst)) add(pre + "write", group, TU("Scrittura"), "MB/s", *v / (1024.0 * 1024.0));
     }
 
     // ---- Rete (solo le schede che hanno avuto traffico)
@@ -169,7 +170,7 @@ void SystemSensors::Collect(const CpuStats& cpu, const GpuStats& gpu, bool gpuFr
       const double sent = find(tx, inst).value_or(0);
       if (rx > 0 || sent > 0) activeNics_.insert(inst);
       if (!activeNics_.contains(inst)) continue;
-      const std::string group = "Rete · " + ToUtf8(inst), pre = "net:" + ToUtf8(inst) + ":";
+      const std::string group = TU("Rete · ") + ToUtf8(inst), pre = "net:" + ToUtf8(inst) + ":";
       add(pre + "rx", group, "Download", "Mbit/s", rx * 8.0 / 1e6);
       add(pre + "tx", group, "Upload", "Mbit/s", sent * 8.0 / 1e6);
     }
@@ -180,31 +181,31 @@ void SystemSensors::Collect(const CpuStats& cpu, const GpuStats& gpu, bool gpuFr
       if (c <= 0 || c > 150) continue;
       std::string name = ToUtf8(inst);
       if (const auto dot = name.rfind('.'); dot != std::string::npos) name = name.substr(dot + 1);
-      add("tz:" + ToUtf8(inst), "Zone termiche ACPI", "Zona " + name, "°C", c);
+      add("tz:" + ToUtf8(inst), TU("Zone termiche ACPI"), TU("Zona ") + name, "°C", c);
     }
   }
 
   // ---- Batteria
   if (bat.present) {
-    const std::string g = "Batteria";
-    if (bat.percent >= 0) add("bat:pct", g, "Livello", "%", bat.percent);
-    if (bat.rateW) add("bat:rate", g, bat.charging ? "Potenza di carica" : "Consumo", "W", *bat.rateW);
-    if (bat.remainMin) add("bat:remain", g, "Autonomia", "min", *bat.remainMin);
+    const std::string g = TU("Batteria");
+    if (bat.percent >= 0) add("bat:pct", g, TU("Livello"), "%", bat.percent);
+    if (bat.rateW) add("bat:rate", g, bat.charging ? TU("Potenza di carica") : TU("Consumo"), "W", *bat.rateW);
+    if (bat.remainMin) add("bat:remain", g, TU("Autonomia"), "min", *bat.remainMin);
     SYSTEM_BATTERY_STATE st{};
     if (CallNtPowerInformation(SystemBatteryState, nullptr, 0, &st, sizeof(st)) == 0 && st.BatteryPresent) {
-      if (st.RemainingCapacity) add("bat:capacity", g, "Carica residua", "mWh", st.RemainingCapacity);
-      if (st.MaxCapacity) add("bat:maxcapacity", g, "Capacità piena", "mWh", st.MaxCapacity);
+      if (st.RemainingCapacity) add("bat:capacity", g, TU("Carica residua"), "mWh", st.RemainingCapacity);
+      if (st.MaxCapacity) add("bat:maxcapacity", g, TU("Capacità piena"), "mWh", st.MaxCapacity);
     }
   }
 
   // ---- Sistema
   PERFORMANCE_INFORMATION pi{sizeof(pi)};
   if (GetPerformanceInfo(&pi, sizeof(pi))) {
-    add("sys:processes", "Sistema", "Processi", "", pi.ProcessCount);
-    add("sys:threads", "Sistema", "Thread", "", pi.ThreadCount);
-    add("sys:handles", "Sistema", "Handle", "", pi.HandleCount);
+    add("sys:processes", TU("Sistema"), TU("Processi"), "", pi.ProcessCount);
+    add("sys:threads", TU("Sistema"), "Thread", "", pi.ThreadCount);
+    add("sys:handles", TU("Sistema"), "Handle", "", pi.HandleCount);
   }
-  add("sys:uptime", "Sistema", "Tempo di attività", "h", GetTickCount64() / 3600000.0);
+  add("sys:uptime", TU("Sistema"), TU("Tempo di attività"), "h", GetTickCount64() / 3600000.0);
 }
 
 }  // namespace po

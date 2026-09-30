@@ -22,7 +22,8 @@
 #include "common/resources.h"
 #include "common/rtss_preset.h"
 #include "common/util.h"
-#include "settings/theme.h"
+#include "settings/theme.h"
+#include "common/i18n.h"
 
 #pragma comment(lib, "urlmon.lib")
 #pragma comment(lib, "wininet.lib")
@@ -49,20 +50,20 @@ void Reset(Profile& p, const char* layout, const char* position, float font, int
 }
 
 const BasePreset kBase[] = {
-    {L"Steam classico", L"Barra orizzontale in alto a sinistra: FPS e grafico, frame time, CPU, GPU, RAM.",
+    {T(L"Steam classico"), T(L"Barra orizzontale in alto a sinistra: FPS e grafico, frame time, CPU, GPU, RAM."),
      [](Profile& p) { Reset(p, "bar", "top-left", 15, 55); }},
-    {L"Solo FPS", L"Solo gli FPS con minimo/massimo e 1% low, piccolo nell'angolo.",
+    {T(L"Solo FPS"), T(L"Solo gli FPS con minimo/massimo e 1% low, piccolo nell'angolo."),
      [](Profile& p) {
        Reset(p, "bar", "top-left", 16, 45);
        p.show.frametime = p.show.cpu = p.show.gpu = p.show.ram = p.show.battery = false;
        p.SetField("fps", "low1", true);
      }},
-    {L"Completo verticale", L"Una riga per elemento, con tutti i dati: temperature, frequenze, VRAM, velocità RAM.",
+    {T(L"Completo verticale"), T(L"Una riga per elemento, con tutti i dati: temperature, frequenze, VRAM, velocità RAM."),
      [](Profile& p) {
        Reset(p, "vertical", "top-left", 16, 60);
        p.SetField("fps", "low1", true);
      }},
-    {L"Compatto a destra", L"Verticale piccolo nell'angolo in alto a destra: utilizzo e temperatura di CPU e GPU.",
+    {T(L"Compatto a destra"), T(L"Verticale piccolo nell'angolo in alto a destra: utilizzo e temperatura di CPU e GPU."),
      [](Profile& p) {
        Reset(p, "vertical", "top-right", 13, 50);
        p.show.graph = p.show.frametime = false;
@@ -70,12 +71,12 @@ const BasePreset kBase[] = {
        for (const char* f : {"clock", "vram"}) p.SetField("gpu", f, false);
        p.SetField("ram", "speed", false);
      }},
-    {L"Benchmark grande", L"Verticale grande e ben leggibile per registrare o confrontare, sfondo più scuro.",
+    {T(L"Benchmark grande"), T(L"Verticale grande e ben leggibile per registrare o confrontare, sfondo più scuro."),
      [](Profile& p) {
        Reset(p, "vertical", "top-left", 22, 75);
        p.SetField("fps", "low1", true);
      }},
-    {L"Trasparente", L"Barra senza sfondo, solo testo: disturba il meno possibile.",
+    {T(L"Trasparente"), T(L"Barra senza sfondo, solo testo: disturba il meno possibile."),
      [](Profile& p) { Reset(p, "bar", "top-left", 15, 0); }},
 };
 
@@ -92,14 +93,14 @@ struct Package {
 std::vector<Package> Featured() {
   return {
       {L"TroyMetrics Benchmark", L"TroyMetrics",
-       L"Overlay benchmark completo: FPS, frametime, CPU con barchart per core, GPU, VRAM, RAM, animazioni (1080p e "
-       L"1440p, varie colorazioni).",
+       T(L"Overlay benchmark completo: FPS, frametime, CPU con barchart per core, GPU, VRAM, RAM, animazioni (1080p e "
+       L"1440p, varie colorazioni)."),
        "TroyMetrics/Benchmark-Overlays", true},
       {L"RTSS-Overlay", L"PeterKelemen2",
-       L"Set di overlay per combinazioni di CPU e GPU AMD / Intel / NVIDIA (GPL-3.0).", "PeterKelemen2/RTSS-Overlay"},
-      {L"My RivaTuner overlays", L"PillarsZhang", L"Overlay compatti con opacità e grandezza diverse.",
+       T(L"Set di overlay per combinazioni di CPU e GPU AMD / Intel / NVIDIA (GPL-3.0)."), "PeterKelemen2/RTSS-Overlay"},
+      {L"My RivaTuner overlays", L"PillarsZhang", T(L"Overlay compatti con opacità e grandezza diverse."),
        "PillarsZhang/my-rivatuner-overlays"},
-      {L"Minimalist overlay", L"itsmeraktim", L"Overlay minimale e pulito, pensato per i portatili Lenovo.",
+      {L"Minimalist overlay", L"itsmeraktim", T(L"Overlay minimale e pulito, pensato per i portatili Lenovo."),
        "itsmeraktim/msiab_ovlconfig_itsmeraktim"},
   };
 }
@@ -166,7 +167,7 @@ bool DownloadRelease(const Package& p, std::wstring& error) {
         if (a.value("name", "").ends_with(".zip")) url = a.value("browser_download_url", "");
   }
   if (url.empty()) {
-    error = L"Nessun pacchetto nell'ultima versione (o GitHub non raggiungibile).";
+    error = T(L"Nessun pacchetto nell'ultima versione (o GitHub non raggiungibile).");
     return false;
   }
   std::error_code ec;
@@ -174,7 +175,7 @@ bool DownloadRelease(const Package& p, std::wstring& error) {
   fs::create_directories(PackageDir(p), ec);
   const fs::path zip = PackageDir(p) / L"release.zip";
   if (FAILED(URLDownloadToFileW(nullptr, ToWide(url).c_str(), zip.c_str(), 0, nullptr))) {
-    error = L"Download non riuscito.";
+    error = T(L"Download non riuscito.");
     return false;
   }
   wchar_t sys[MAX_PATH];
@@ -183,7 +184,7 @@ bool DownloadRelease(const Package& p, std::wstring& error) {
   STARTUPINFOW si{sizeof(si)};
   PROCESS_INFORMATION pi{};
   if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-    error = L"Impossibile estrarre il pacchetto.";
+    error = T(L"Impossibile estrarre il pacchetto.");
     return false;
   }
   WaitForSingleObject(pi.hProcess, 60000);
@@ -199,7 +200,7 @@ bool DownloadTree(const Package& p, std::wstring& error) {
   const std::string branch = info ? info->value("default_branch", "main") : "main";
   const auto tree = GitHubJson(ToWide("https://api.github.com/repos/" + p.repo + "/git/trees/" + branch + "?recursive=1"));
   if (!tree || !tree->contains("tree")) {
-    error = L"GitHub non raggiungibile o repository non trovato.";
+    error = T(L"GitHub non raggiungibile o repository non trovato.");
     return false;
   }
   std::error_code ec;
@@ -294,16 +295,16 @@ void AddRow(const std::wstring& a, const std::wstring& b, Row r) {
 void AddPackage(int idx) {
   const Package& p = G->packages[size_t(idx)];
   const auto files = PackageOverlays(p);
-  std::wstring info = p.author.empty() ? p.desc : L"di " + p.author + L"  ·  " + p.desc;
+  std::wstring info = p.author.empty() ? p.desc : T(L"di ") + p.author + L"  ·  " + p.desc;
   if (p.stars >= 0) info = std::format(L"\u2605 {}  ·  ", p.stars) + info;
-  AddRow(files.empty() ? L"    ⬇  " + p.name + L"   (da scaricare)"
+  AddRow(files.empty() ? L"    ⬇  " + p.name + T(L"   (da scaricare)")
                        : std::format(L"    ✔  {}   ({} overlay)", p.name, files.size()),
          info, {Row::K::Package, idx});
   for (const auto& f : files) {
     const std::wstring stem = f.stem().wstring();
     AddRow(L"          " + stem,
-           stem.find(L"1080p") != std::wstring::npos ? L"doppio clic per applicare  ·  per schermi 1080p"
-                                                     : L"doppio clic per applicare",
+           stem.find(L"1080p") != std::wstring::npos ? T(L"doppio clic per applicare  ·  per schermi 1080p")
+                                                     : T(L"doppio clic per applicare"),
            {Row::K::Overlay, idx, f});
   }
 }
@@ -313,13 +314,13 @@ void Fill() {
   SendMessageW(G->list, WM_SETREDRAW, FALSE, 0);
   ListView_DeleteAllItems(G->list);
   G->rows.clear();
-  AddRow(L"OVERLAY BASE (inclusi)", L"", {Row::K::Header});
+  AddRow(T(L"OVERLAY BASE (inclusi)"), L"", {Row::K::Header});
   for (int i = 0; i < int(std::size(kBase)); ++i)
     AddRow(std::wstring(L"    ") + kBase[i].name, kBase[i].desc, {Row::K::Base, i});
-  AddRow(L"STORE  ·  IN EVIDENZA", L"overlay RTSS pubblicati su GitHub dai loro autori", {Row::K::Header});
+  AddRow(T(L"STORE  ·  IN EVIDENZA"), T(L"overlay RTSS pubblicati su GitHub dai loro autori"), {Row::K::Header});
   for (size_t i = 0; i < G->featuredCount; ++i) AddPackage(int(i));
   if (G->packages.size() > G->featuredCount) {
-    AddRow(L"STORE  ·  TROVATI SU GITHUB", L"non verificati: se un repository non contiene overlay non viene aggiunto nulla",
+    AddRow(T(L"STORE  ·  TROVATI SU GITHUB"), T(L"non verificati: se un repository non contiene overlay non viene aggiunto nulla"),
            {Row::K::Header});
     for (size_t i = G->featuredCount; i < G->packages.size(); ++i) AddPackage(int(i));
   }
@@ -343,7 +344,7 @@ const Row* Selected() {
 
 void Download(int idx) {
   const Package& p = G->packages[size_t(idx)];
-  SetStatus(L"Scaricamento di \"" + p.name + L"\" da GitHub...");
+  SetStatus(T(L"Scaricamento di \"") + p.name + T(L"\" da GitHub..."));
   SetCursor(LoadCursorW(nullptr, IDC_WAIT));
   std::wstring err;
   const bool ok = p.release ? DownloadRelease(p, err) : DownloadTree(p, err);
@@ -353,13 +354,13 @@ void Download(int idx) {
   if (!ok)
     SetStatus(err, ui::col::Bad);
   else if (n == 0)
-    SetStatus(L"\"" + name + L"\" non contiene overlay RTSS (.ovl/.ovx).", ui::col::Bad);
+    SetStatus(L"\"" + name + T(L"\" non contiene overlay RTSS (.ovl/.ovx)."), ui::col::Bad);
   else
-    SetStatus(std::format(L"\"{}\": {} overlay scaricati. Scegline uno e premi Applica.", name, n), ui::col::Good);
+    SetStatus(TF(L"\"{}\": {} overlay scaricati. Scegline uno e premi Applica.", name, n), ui::col::Good);
 }
 
 void Search() {
-  SetStatus(L"Ricerca di overlay RTSS su GitHub...");
+  SetStatus(T(L"Ricerca di overlay RTSS su GitHub..."));
   SetCursor(LoadCursorW(nullptr, IDC_WAIT));
   G->packages.resize(G->featuredCount);
   for (auto& p : SearchGitHub())
@@ -367,8 +368,8 @@ void Search() {
       G->packages.push_back(std::move(p));
   Fill();
   const size_t found = G->packages.size() - G->featuredCount;
-  SetStatus(found ? std::format(L"Trovati {} repository: doppio clic per scaricarne gli overlay.", found)
-                  : std::wstring(L"Nessun altro repository trovato (o GitHub non raggiungibile)."),
+  SetStatus(found ? TF(L"Trovati {} repository: doppio clic per scaricarne gli overlay.", found)
+                  : std::wstring(T(L"Nessun altro repository trovato (o GitHub non raggiungibile).")),
             found ? ui::col::Good : ui::col::Sub);
 }
 
@@ -382,12 +383,12 @@ void Apply() {
     kBase[row->index].apply(p);
     Sanitize(p);
     G->applied = true;
-    SetStatus(std::format(L"\"{}\" applicato al profilo \"{}\".", kBase[row->index].name, ToWide(p.name)),
+    SetStatus(TF(L"\"{}\" applicato al profilo \"{}\".", kBase[row->index].name, ToWide(p.name)),
               ui::col::Good);
   } else if (row->k == Row::K::Overlay) {
     const auto res = ImportRtssPreset(row->file);
     if (!res.ok) {
-      SetStatus(L"Overlay non importato: " + ToWide(res.error), ui::col::Bad);
+      SetStatus(T(L"Overlay non importato: ") + ToWide(res.error), ui::col::Bad);
       return;
     }
     p.rtss = res.layout;
@@ -398,7 +399,7 @@ void Apply() {
     }
     Sanitize(p);
     G->applied = true;
-    SetStatus(std::format(L"\"{}\" applicato al profilo \"{}\".", row->file.stem().wstring(), ToWide(p.name)),
+    SetStatus(TF(L"\"{}\" applicato al profilo \"{}\".", row->file.stem().wstring(), ToWide(p.name)),
               ui::col::Good);
   }
 }
@@ -412,7 +413,7 @@ void Paint(HDC dc, const RECT& rc) {
     DrawTextW(dc, t.c_str(), -1, &r, fmt | DT_NOPREFIX | DT_END_ELLIPSIS);
   };
   text(L"STORE OVERLAY", SR({20, 8, 600, 36}), G->fontTitle, ui::col::Accent, DT_LEFT | DT_TOP | DT_SINGLELINE);
-  text(std::format(L"Scegli un overlay e premi \"Applica\": va nel profilo \"{}\" e compare subito in gioco.",
+  text(TF(L"Scegli un overlay e premi \"Applica\": va nel profilo \"{}\" e compare subito in gioco.",
                    ToWide(G->profile->name)),
        SR({21, 40, 860, 60}), G->font, ui::col::Sub, DT_LEFT | DT_TOP | DT_SINGLELINE);
   RECT border = SR({20, 72, 860, 556});
@@ -469,7 +470,7 @@ LRESULT CALLBACK Proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
           if (const Row* r = Selected(); r && (r->k == Row::K::Package || r->k == Row::K::Overlay))
             Download(r->index);
           else
-            SetStatus(L"Seleziona un pacchetto dello store da scaricare o aggiornare.");
+            SetStatus(T(L"Seleziona un pacchetto dello store da scaricare o aggiornare."));
         }
         if (LOWORD(wp) == IDC_SEARCH) Search();
         if (LOWORD(wp) == IDC_CLOSE) G->done = true;
@@ -544,20 +545,20 @@ bool RunGallery(HWND owner, HINSTANCE inst, HFONT uiFont, Profile& profile) {
     ListView_SetTextColor(g.list, ui::col::Text);
     g.rowHeight = ImageList_Create(1, S(26), ILC_COLOR32, 1, 0);
     ListView_SetImageList(g.list, g.rowHeight, LVSIL_SMALL);
-    const std::pair<const wchar_t*, int> cols[] = {{L"Overlay", 330}, {L"Descrizione", 490}};
+    const std::pair<const wchar_t*, int> cols[] = {{L"Overlay", 330}, {T(L"Descrizione"), 490}};
     for (int i = 0; i < 2; ++i) {
       LVCOLUMNW c{LVCF_TEXT | LVCF_WIDTH};
       c.pszText = const_cast<wchar_t*>(cols[i].first);
       c.cx = S(cols[i].second);
       ListView_InsertColumn(g.list, i, &c);
     }
-    ui::MakeButton(Make(L"BUTTON", L"Cerca su GitHub", WS_TABSTOP | BS_OWNERDRAW, 428, 572, 132, 32, IDC_SEARCH),
+    ui::MakeButton(Make(L"BUTTON", T(L"Cerca su GitHub"), WS_TABSTOP | BS_OWNERDRAW, 428, 572, 132, 32, IDC_SEARCH),
                    ui::col::Panel, false);
-    ui::MakeButton(Make(L"BUTTON", L"Scarica / aggiorna", WS_TABSTOP | BS_OWNERDRAW, 568, 572, 132, 32, IDC_DOWNLOAD),
+    ui::MakeButton(Make(L"BUTTON", T(L"Scarica / aggiorna"), WS_TABSTOP | BS_OWNERDRAW, 568, 572, 132, 32, IDC_DOWNLOAD),
                    ui::col::Panel, false);
-    ui::MakeButton(Make(L"BUTTON", L"Chiudi", WS_TABSTOP | BS_OWNERDRAW, 708, 572, 70, 32, IDC_CLOSE), ui::col::Bg,
+    ui::MakeButton(Make(L"BUTTON", T(L"Chiudi"), WS_TABSTOP | BS_OWNERDRAW, 708, 572, 70, 32, IDC_CLOSE), ui::col::Bg,
                    false);
-    ui::MakeButton(Make(L"BUTTON", L"Applica", WS_TABSTOP | BS_OWNERDRAW, 786, 572, 74, 32, IDC_APPLY), ui::col::Bg,
+    ui::MakeButton(Make(L"BUTTON", T(L"Applica"), WS_TABSTOP | BS_OWNERDRAW, 786, 572, 74, 32, IDC_APPLY), ui::col::Bg,
                    true);
     Fill();
     EnableWindow(owner, FALSE);

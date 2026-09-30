@@ -63,6 +63,14 @@ src/
     theme.*               tema scuro
 ```
 
+## Lingua dell'interfaccia
+
+I testi sono scritti in italiano direttamente nel codice e passano da `T()` / `TU()` / `TF()` (`src/common/i18n.*`). Con l'inglese attivo, queste funzioni restituiscono la traduzione della tabella `src/common/i18n_en.inc`, che usa come chiave il testo italiano esatto. Se una frase manca dalla tabella, resta in italiano.
+
+La lingua è `language` in `config.json` (`"it"` / `"en"`, vuota = lingua di Windows):
+- **Impostazioni**: la leggono all'avvio e si riaprono quando cambia.
+- **Overlay**: la riapplica a ogni ricaricamento della configurazione.
+
 ## Sorgenti dei dati
 
 | Dato | Sorgente | Fallback |
@@ -99,7 +107,7 @@ Tutto si trova in `%APPDATA%\PerfOverlay Supreme\`:
 
 | File | Contenuto |
 |---|---|
-| `config.json` | impostazioni globali (refresh, hotkey, fuori dal gioco, profilo del desktop, autostart, ...) |
+| `config.json` | impostazioni globali (refresh, hotkey, fuori dal gioco, profilo del desktop, lingua, autostart, ...) |
 | `games.json` | giochi noti, appresi, esclusi (formato in `src/config/games.example.json`) |
 | `profiles\<Nome>.json` | un file per profilo; `default.json` è il fallback |
 | `presets\` | preset RTSS importati, con immagini e font |

@@ -21,7 +21,8 @@
 #include "common/darkmode.h"
 #include "common/resources.h"
 #include "common/util.h"
-#include "settings/theme.h"
+#include "settings/theme.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace fs = std::filesystem;
@@ -29,7 +30,7 @@ namespace {
 
 constexpr int kRowH = 28;
 enum Kind { kGame, kLearned, kExcluded };
-constexpr const wchar_t* kKindNames[] = {L"Gioco", L"Appreso in automatico", L"Escluso (mai overlay)"};
+const wchar_t* const kKindNames[] = {T(L"Gioco"), T(L"Appreso in automatico"), T(L"Escluso (mai overlay)")};
 
 enum : int {
   IDC_LIST = 4000,
@@ -232,7 +233,7 @@ std::vector<Candidate> RunningPrograms() {
         if (lower.rfind(WindowsDirLower(), 0) == 0) return TRUE;  // componenti di Windows
         const std::string exe = lower.substr(lower.find_last_of('\\') + 1);
         if (!c->seen->insert(exe).second) return TRUE;
-        c->out->push_back({exe, title, L"Aperto ora", path});
+        c->out->push_back({exe, title, T(L"Aperto ora"), path});
         return TRUE;
       },
       reinterpret_cast<LPARAM>(&ctx));
@@ -415,7 +416,7 @@ void PickerPaint(HDC dc, const RECT&) {
   RECT border = SR({20, 88, 880, 560});
   InflateRect(&border, 1, 1);
   ui::FillRound(dc, border, S(2), ui::col::Line, ui::col::Line, 0);
-  DrawTextAt(dc, std::format(L"{} selezionati  ·  spunta i programmi da aggiungere (doppio clic = spunta)", P->checked.size()),
+  DrawTextAt(dc, TF(L"{} selezionati  ·  spunta i programmi da aggiungere (doppio clic = spunta)", P->checked.size()),
              SR({20, 576, 600, 608}), C.font, ui::col::Sub, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -494,15 +495,15 @@ std::vector<Candidate> RunPicker(HWND owner, const std::wstring& title, const st
   pk.title = title;
   pk.hint = hint;
   pk.all = std::move(all);
-  pk.wnd = CreateCentered(kPickerClass, L"Aggiungi giochi", owner, 900, 624);
+  pk.wnd = CreateCentered(kPickerClass, T(L"Aggiungi giochi"), owner, 900, 624);
   if (!pk.wnd) return {};
   HWND search = MakeCtl(pk.wnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 589, 22, 282, kRowH - 11, IDP_SEARCH);
-  SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Cerca"));
+  SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(T(L"Cerca")));
   pk.list = MakeList(pk.wnd, IDP_LIST, {20, 88, 880, 560}, 0,
-                     {{L"Programma", 280}, {L"Gioco / finestra", 400}, {L"Origine", 140}}, pk.rowHeight);
+                     {{T(L"Programma"), 280}, {T(L"Gioco / finestra"), 400}, {T(L"Origine"), 140}}, pk.rowHeight);
   ListView_SetExtendedListViewStyle(pk.list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_CHECKBOXES);
-  MakeBtn(pk.wnd, IDP_CANCEL, L"Annulla", 640, 576, 104, 32, ui::col::Bg);
-  MakeBtn(pk.wnd, IDP_ADD, L"Aggiungi", 756, 576, 124, 32, ui::col::Bg, true);
+  MakeBtn(pk.wnd, IDP_CANCEL, T(L"Annulla"), 640, 576, 104, 32, ui::col::Bg);
+  MakeBtn(pk.wnd, IDP_ADD, T(L"Aggiungi"), 756, 576, 124, 32, ui::col::Bg, true);
   PickerRebuild();
   SetFocus(pk.list);
   RunModal(pk.wnd, owner, pk.done);
@@ -551,7 +552,7 @@ void Rebuild(const std::set<std::string>& select = {}) {
     if (!f.empty() && !IContains(e.process, f) && !IContains(e.window, f)) continue;
     LVITEMW it{LVIF_TEXT};
     it.iItem = int(G->shown.size());
-    std::wstring p = ToWide(e.process == "*" ? "* (qualsiasi programma)" : e.process);
+    std::wstring p = ToWide(e.process == "*" ? TU("* (qualsiasi programma)") : e.process);
     it.pszText = p.data();
     const int row = ListView_InsertItem(G->list, &it);
     SetItemText(G->list, row, 1, ToWide(e.window));
@@ -589,9 +590,9 @@ void AddPrograms(const std::vector<std::string>& exes, Kind kind) {
       it->kind = kind;
     added.insert(exe);
   }
-  G->status = added.empty() ? L"Nessun programma aggiunto."
-                            : std::format(L"{} {} alla lista.", added.size(),
-                                          added.size() == 1 ? L"programma aggiunto" : L"programmi aggiunti");
+  G->status = added.empty() ? T(L"Nessun programma aggiunto.")
+                            : TF(L"{} {} alla lista.", added.size(),
+                                          added.size() == 1 ? T(L"programma aggiunto") : T(L"programmi aggiunti"));
   Rebuild(added);
   UpdateTitleField();
 }
@@ -606,9 +607,9 @@ std::vector<Candidate> NotListed(std::vector<Candidate> c) {
 
 void OnAddRunning() {
   auto c = NotListed(RunningPrograms());
-  const auto picked = RunPicker(G->wnd, L"PROGRAMMI APERTI",
-                                L"Avvia il gioco, poi spuntalo qui. Sono elencati i programmi con una finestra aperta "
-                                L"che non sono già nella lista.",
+  const auto picked = RunPicker(G->wnd, T(L"PROGRAMMI APERTI"),
+                                T(L"Avvia il gioco, poi spuntalo qui. Sono elencati i programmi con una finestra aperta "
+                                L"che non sono già nella lista."),
                                 std::move(c));
   std::vector<std::string> exes;
   for (const auto& p : picked) exes.push_back(p.exe);
@@ -618,9 +619,9 @@ void OnAddRunning() {
 void OnAddInstalled() {
   SetCursor(LoadCursorW(nullptr, IDC_WAIT));
   auto c = NotListed(InstalledGames());
-  const auto picked = RunPicker(G->wnd, L"GIOCHI INSTALLATI",
-                                L"Eseguibili trovati nelle librerie Steam, Epic Games e GOG. Se un gioco ha più "
-                                L"eseguibili spunta quello del gioco (es. ...-Win64-Shipping.exe).",
+  const auto picked = RunPicker(G->wnd, T(L"GIOCHI INSTALLATI"),
+                                T(L"Eseguibili trovati nelle librerie Steam, Epic Games e GOG. Se un gioco ha più "
+                                L"eseguibili spunta quello del gioco (es. ...-Win64-Shipping.exe)."),
                                 std::move(c));
   std::vector<std::string> exes;
   for (const auto& p : picked) exes.push_back(p.exe);
@@ -631,10 +632,10 @@ void OnAddExe() {
   wchar_t buf[MAX_PATH * 4] = {};
   OPENFILENAMEW ofn{sizeof(ofn)};
   ofn.hwndOwner = G->wnd;
-  ofn.lpstrFilter = L"Programmi (*.exe)\0*.exe\0";
+  ofn.lpstrFilter = T(L"Programmi (*.exe)\0*.exe\0");
   ofn.lpstrFile = buf;
   ofn.nMaxFile = DWORD(std::size(buf));
-  ofn.lpstrTitle = L"Scegli l'eseguibile del gioco";
+  ofn.lpstrTitle = T(L"Scegli l'eseguibile del gioco");
   ofn.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ALLOWMULTISELECT | OFN_NOCHANGEDIR;
   if (!GetOpenFileNameW(&ofn)) return;
   std::vector<std::string> exes;
@@ -664,16 +665,16 @@ void RemoveSelected() {
   auto sel = SelectedEntries();
   std::sort(sel.rbegin(), sel.rend());
   for (int i : sel) G->entries.erase(G->entries.begin() + i);
-  G->status = std::format(L"{} {}.", sel.size(), sel.size() == 1 ? L"voce rimossa" : L"voci rimosse");
+  G->status = std::format(L"{} {}.", sel.size(), sel.size() == 1 ? T(L"voce rimossa") : T(L"voci rimosse"));
   Rebuild();
   UpdateTitleField();
 }
 
 void EditorPaint(HDC dc, const RECT&) {
-  DrawTextAt(dc, L"LISTA GIOCHI", SR({20, 8, 600, 36}), C.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP | DT_SINGLELINE);
+  DrawTextAt(dc, T(L"LISTA GIOCHI"), SR({20, 8, 600, 36}), C.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP | DT_SINGLELINE);
   DrawTextAt(dc,
-             L"L'overlay compare su questi programmi. Quelli \"appresi\" li ha riconosciuti da solo (renderizzano e "
-             L"usano molta GPU); gli esclusi non mostrano mai l'overlay.",
+             T(L"L'overlay compare su questi programmi. Quelli \"appresi\" li ha riconosciuti da solo (renderizzano e "
+             L"usano molta GPU); gli esclusi non mostrano mai l'overlay."),
              SR({21, 40, 700, 80}), C.font, ui::col::Sub, DT_LEFT | DT_TOP | DT_WORDBREAK);
   ui::FillRound(dc, SR({740, 16, 980, 16 + kRowH}), S(6), ui::col::Input,
                 G->focusedEdit == IDC_SEARCH ? ui::col::Accent : ui::col::Line);
@@ -684,20 +685,20 @@ void EditorPaint(HDC dc, const RECT&) {
   auto section = [&](const wchar_t* t, int y) {
     DrawTextAt(dc, t, SR({744, y, 980, y + 18}), C.fontBold, ui::col::Sub, DT_LEFT | DT_TOP | DT_SINGLELINE);
   };
-  section(L"AGGIUNGI", 88);
-  section(L"VOCI SELEZIONATE", 272);
+  section(T(L"AGGIUNGI"), 88);
+  section(T(L"VOCI SELEZIONATE"), 272);
 
   int counts[3] = {};
   for (const auto& e : G->entries) ++counts[e.kind];
-  DrawTextAt(dc, std::format(L"{} giochi  ·  {} appresi  ·  {} esclusi", counts[0], counts[1], counts[2]),
+  DrawTextAt(dc, TF(L"{} giochi  ·  {} appresi  ·  {} esclusi", counts[0], counts[1], counts[2]),
              SR({744, 456, 980, 480}), C.font, ui::col::Sub, DT_LEFT | DT_TOP | DT_SINGLELINE);
   DrawTextAt(dc, G->status, SR({744, 482, 980, 540}), C.font, ui::col::Good, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-  DrawTextAt(dc, L"Solo se il titolo contiene", SR({20, 604, 200, 632}), C.font, ui::col::Sub,
+  DrawTextAt(dc, T(L"Solo se il titolo contiene"), SR({20, 604, 200, 632}), C.font, ui::col::Sub,
              DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   ui::FillRound(dc, SR({204, 604, 520, 604 + kRowH}), S(6), ui::col::Input,
                 G->focusedEdit == IDC_TITLE ? ui::col::Accent : ui::col::Line);
-  DrawTextAt(dc, L"(facoltativo)", SR({528, 604, 740, 632}), C.font, ui::col::Disabled,
+  DrawTextAt(dc, T(L"(facoltativo)"), SR({528, 604, 740, 632}), C.font, ui::col::Disabled,
              DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -817,21 +818,21 @@ bool RunGamesEditor(HWND owner, HINSTANCE inst, HFONT uiFont, GameList& games) {
   for (const auto& e : games.learned) ed.entries.push_back({e.process, e.window, kLearned});
   for (const auto& e : games.exclude) ed.entries.push_back({e, "", kExcluded});
 
-  ed.wnd = CreateCentered(kEditorClass, L"Lista giochi", owner, 1000, 652);
+  ed.wnd = CreateCentered(kEditorClass, T(L"Lista giochi"), owner, 1000, 652);
   bool ok = false;
   if (ed.wnd) {
     HWND search = MakeCtl(ed.wnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 749, 22, 222, kRowH - 11, IDC_SEARCH);
-    SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Cerca"));
+    SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(T(L"Cerca")));
     ed.list = MakeList(ed.wnd, IDC_LIST, {20, 88, 720, 588}, 0,
-                       {{L"Programma", 280}, {L"Titolo contiene", 200}, {L"Stato", 190}}, ed.rowHeight);
-    MakeBtn(ed.wnd, IDC_ADD_RUNNING, L"Dai programmi aperti...", 744, 110, 236, 32, ui::col::Panel);
-    MakeBtn(ed.wnd, IDC_ADD_INSTALLED, L"Dai giochi installati...", 744, 150, 236, 32, ui::col::Panel);
-    MakeBtn(ed.wnd, IDC_ADD_EXE, L"Scegli file .exe...", 744, 190, 236, 32, ui::col::Panel);
-    MakeBtn(ed.wnd, IDC_MARK_GAME, L"Segna come gioco", 744, 294, 236, 32, ui::col::Panel);
-    MakeBtn(ed.wnd, IDC_MARK_EXCLUDED, L"Escludi (mai overlay)", 744, 334, 236, 32, ui::col::Panel);
-    MakeBtn(ed.wnd, IDC_REMOVE, L"Rimuovi dalla lista", 744, 374, 236, 32, ui::col::Panel);
+                       {{T(L"Programma"), 280}, {T(L"Titolo contiene"), 200}, {T(L"Stato"), 190}}, ed.rowHeight);
+    MakeBtn(ed.wnd, IDC_ADD_RUNNING, T(L"Dai programmi aperti..."), 744, 110, 236, 32, ui::col::Panel);
+    MakeBtn(ed.wnd, IDC_ADD_INSTALLED, T(L"Dai giochi installati..."), 744, 150, 236, 32, ui::col::Panel);
+    MakeBtn(ed.wnd, IDC_ADD_EXE, T(L"Scegli file .exe..."), 744, 190, 236, 32, ui::col::Panel);
+    MakeBtn(ed.wnd, IDC_MARK_GAME, T(L"Segna come gioco"), 744, 294, 236, 32, ui::col::Panel);
+    MakeBtn(ed.wnd, IDC_MARK_EXCLUDED, T(L"Escludi (mai overlay)"), 744, 334, 236, 32, ui::col::Panel);
+    MakeBtn(ed.wnd, IDC_REMOVE, T(L"Rimuovi dalla lista"), 744, 374, 236, 32, ui::col::Panel);
     MakeCtl(ed.wnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 213, 610, 298, kRowH - 11, IDC_TITLE);
-    MakeBtn(ed.wnd, IDC_CANCEL, L"Annulla", 760, 602, 104, 32, ui::col::Bg);
+    MakeBtn(ed.wnd, IDC_CANCEL, T(L"Annulla"), 760, 602, 104, 32, ui::col::Bg);
     MakeBtn(ed.wnd, IDC_OK, L"OK", 876, 602, 104, 32, ui::col::Bg, true);
     Rebuild();
     UpdateTitleField();

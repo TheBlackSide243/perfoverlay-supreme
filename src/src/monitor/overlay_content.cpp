@@ -4,7 +4,8 @@
 #include <utility>
 
 #include "common/sensor_feed.h"
-#include "common/util.h"
+#include "common/util.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -180,7 +181,7 @@ void AddBattery(Builder& b, const Profile& p, const SystemSnapshot& s) {
   const Color c = p.colors.battery;
   b.Label(L"BAT ", c);
   if (p.Field("battery", "percent")) b.Value(s.battery.percent >= 0 ? Pct(s.battery.percent) : L"—", c);
-  if (p.Field("battery", "state")) b.Unit(s.battery.charging ? L" ▲ in carica" : L" ▼ a batteria", c);
+  if (p.Field("battery", "state")) b.Unit(s.battery.charging ? T(L" ▲ in carica") : T(L" ▼ a batteria"), c);
 }
 
 // Sensore scelto dall'utente: etichetta nel colore della sua categoria (CPU, GPU, ...), valore e unità.

@@ -11,7 +11,8 @@
 
 #include "common/log.h"
 #include "common/paths.h"
-#include "common/util.h"
+#include "common/util.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace fs = std::filesystem;
@@ -74,13 +75,13 @@ bool ExtractOvl(const std::vector<uint8_t>& raw, std::string& text, std::string&
   if (raw.size() >= 24 && std::memcmp(raw.data(), "0CDU", 4) == 0) {  // "UDC0" letto al contrario
     const uint32_t usize = U32(raw, 4);
     if (std::memcmp(raw.data() + 20, "0WZL", 4) != 0) {
-      error = "compressione .ovx non supportata (atteso LZW)";
+      error = TU("compressione .ovx non supportata (atteso LZW)");
       return false;
     }
     std::vector<uint8_t> dec;
     dec.reserve(usize);
     if (!LzwDecode(raw.data() + 24, raw.size() - 24, dec) || dec.size() != usize) {
-      error = "file .ovx danneggiato (decompressione fallita)";
+      error = TU("file .ovx danneggiato (decompressione fallita)");
       return false;
     }
     // Contenitore interno "0AZS": 20 byte di intestazione, poi il testo del layout.
@@ -92,7 +93,7 @@ bool ExtractOvl(const std::vector<uint8_t>& raw, std::string& text, std::string&
     text.assign(raw.begin(), raw.end());
   }
   if (text.find("[Master]") == std::string::npos && text.find("[Layer0]") == std::string::npos) {
-    error = "il file non è un layout dell'OverlayEditor di RTSS";
+    error = TU("il file non è un layout dell'OverlayEditor di RTSS");
     return false;
   }
   // I layout RTSS sono in ANSI (Windows-1252): "°C" ecc. → UTF-8
@@ -168,7 +169,7 @@ RtssImportResult ImportRtssPreset(const std::filesystem::path& file) {
   RtssImportResult r;
   std::ifstream f(file, std::ios::binary);
   if (!f) {
-    r.error = "impossibile aprire il file";
+    r.error = TU("impossibile aprire il file");
     return r;
   }
   const std::vector<uint8_t> raw((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -240,7 +241,7 @@ RtssImportResult ImportRtssPreset(const std::filesystem::path& file) {
     if (!l.text.empty()) r.layout.layers.push_back(std::move(l));
   }
   if (r.layout.layers.empty()) {
-    r.error = "il preset non contiene layer di testo";
+    r.error = TU("il preset non contiene layer di testo");
     return r;
   }
 

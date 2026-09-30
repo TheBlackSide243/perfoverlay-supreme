@@ -26,6 +26,7 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
   - integrati: CPU per core, GPU NVIDIA completa via NVML, dischi con temperatura SSD, rete, batteria;
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
+- **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › "Lingua / Language". La prima volta segue la lingua di Windows.
 
 ## Download e uso
 

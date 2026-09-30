@@ -17,7 +17,8 @@
 #include "common/resources.h"
 #include "common/sensor_feed.h"
 #include "common/util.h"
-#include "settings/theme.h"
+#include "settings/theme.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -194,7 +195,7 @@ void Refresh(bool forceRebuild = false) {
   for (const auto& p : B->picks)
     if (!FindEntry(p.id)) {
       const double nan = std::numeric_limits<double>::quiet_NaN();
-      B->sensors.push_back({p.id, "Scelti ma non disponibili ora", p.group.empty() ? p.label : p.group + " · " + p.label,
+      B->sensors.push_back({p.id, TU("Scelti ma non disponibili ora"), p.group.empty() ? p.label : p.group + " · " + p.label,
                             p.unit, nan, nan, nan});
     }
 
@@ -210,6 +211,9 @@ void Refresh(bool forceRebuild = false) {
       if (!B->rows[size_t(r)].header)
         if (const SensorEntry* e = FindEntry(B->rows[size_t(r)].id)) FillSensorRow(r, *e);
   }
+  // Con una fonte di temperature attiva (LibreHardwareMonitor / HWiNFO) il pulsante non serve più e la
+  // riga delle fonti usa tutta la larghezza.
+  ShowWindow(Item(IDC_LHM), B->source.empty() || !B->lhmStatus.empty() ? SW_SHOW : SW_HIDE);
   const RECT info = SR({20, 36, 690, 84});
   InvalidateRect(B->wnd, &info, FALSE);
 }
@@ -251,18 +255,18 @@ void TogglePick(int row, bool on) {
 // ------------------------------------------------------------ LibreHardwareMonitor
 void OnInstallLhm() {
   if (LhmInstalled()) {
-    B->lhmStatus = StartLhm() ? L"LibreHardwareMonitor avviato: i sensori compaiono tra qualche secondo."
-                              : L"Avvio di LibreHardwareMonitor annullato.";
+    B->lhmStatus = StartLhm() ? T(L"LibreHardwareMonitor avviato: i sensori compaiono tra qualche secondo.")
+                              : T(L"Avvio di LibreHardwareMonitor annullato.");
   } else {
     const int answer = MessageBoxW(
         B->wnd,
-        L"Su questo PC Windows non espone la temperatura della CPU (e di scheda madre e ventole) senza un driver.\n\n"
+        T(L"Su questo PC Windows non espone la temperatura della CPU (e di scheda madre e ventole) senza un driver.\n\n"
         L"PerfOverlay Supreme può scaricare LibreHardwareMonitor (open source, circa 7 MB da GitHub) nella sua "
         L"cartella dati e avviarlo nascosto vicino all'orologio: al primo avvio ti chiederà di installare il suo "
-        L"driver dei sensori (PawnIO). Poi l'overlay lo avvia da solo.\n\nProcedere?",
+        L"driver dei sensori (PawnIO). Poi l'overlay lo avvia da solo.\n\nProcedere?"),
         kAppName, MB_YESNO | MB_ICONQUESTION);
     if (answer != IDYES) return;
-    B->lhmStatus = L"Scaricamento di LibreHardwareMonitor...";
+    B->lhmStatus = T(L"Scaricamento di LibreHardwareMonitor...");
     InvalidateRect(B->wnd, nullptr, FALSE);
     UpdateWindow(B->wnd);
     SetCursor(LoadCursorW(nullptr, IDC_WAIT));
@@ -270,8 +274,8 @@ void OnInstallLhm() {
     if (!InstallLhm(err))
       B->lhmStatus = err;
     else
-      B->lhmStatus = StartLhm() ? L"Installato e avviato: accetta il driver PawnIO, poi i sensori compaiono qui."
-                                : L"Installato. Avvio annullato: riprova con \"Temperatura CPU\".";
+      B->lhmStatus = StartLhm() ? T(L"Installato e avviato: accetta il driver PawnIO, poi i sensori compaiono qui.")
+                                : T(L"Installato. Avvio annullato: riprova con \"Temperatura CPU\".");
   }
   InvalidateRect(B->wnd, nullptr, FALSE);
 }
@@ -289,31 +293,33 @@ std::wstring SourcesText() {
     windows = windows || e.id.rfind("cpu:", 0) == 0;
     nvml = nvml || e.id.rfind("nv:", 0) == 0;
   }
-  std::wstring s = L"Fonti:";
+  std::wstring s = T(L"Fonti:");
   if (windows) s += L"  Windows";
   if (nvml) s += L"  ·  NVIDIA NVML";
   if (!B->source.empty()) s += L"  ·  " + ToWide(B->source);
   int n = 0;
   for (const auto& e : B->sensors) n += std::isfinite(e.value) ? 1 : 0;
-  return s + std::format(L"   —   {} sensori, aggiornati ogni secondo", n);
+  return s + TF(L"   —   {} sensori, aggiornati ogni secondo", n);
 }
 
 void Paint(HDC dc, const RECT& client) {
   FillRect(dc, &client, B->brBg);
   SetBkMode(dc, TRANSPARENT);
-  DrawTextAt(dc, L"SENSORI DI SISTEMA", SR({20, 8, 600, 36}), B->fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
+  DrawTextAt(dc, T(L"SENSORI DI SISTEMA"), SR({20, 8, 600, 36}), B->fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
   if (!B->running) {
-    DrawTextAt(dc, L"PerfOverlay Supreme non è in esecuzione: avvialo per leggere i sensori (\"Avvia overlay\").",
+    DrawTextAt(dc, T(L"PerfOverlay Supreme non è in esecuzione: avvialo per leggere i sensori (\"Avvia overlay\")."),
                SR({21, 40, 690, 60}), B->font, ui::col::Bad, DT_LEFT | DT_TOP);
   } else {
-    DrawTextAt(dc, SourcesText(), SR({21, 40, 690, 60}), B->font, ui::col::Sub, DT_LEFT | DT_TOP);
+    const bool lhmButton = IsWindowVisible(Item(IDC_LHM));
+    DrawTextAt(dc, SourcesText(), SR({21, 40, lhmButton ? 490 : 690, 60}), B->font, ui::col::Sub,
+               DT_LEFT | DT_TOP | DT_END_ELLIPSIS);
     if (!B->lhmStatus.empty())
       DrawTextAt(dc, B->lhmStatus, SR({21, 60, 490, 80}), B->font, RGB(255, 200, 60), DT_LEFT | DT_TOP);
     else if (B->source.empty())
-      DrawTextAt(dc, L"Temperatura CPU, scheda madre e ventole: premi \"Temperatura CPU\".", SR({21, 60, 490, 80}),
+      DrawTextAt(dc, T(L"Temperatura CPU, scheda madre e ventole: premi \"Temperatura CPU\"."), SR({21, 60, 490, 80}),
                  B->font, RGB(255, 200, 60), DT_LEFT | DT_TOP);
     else
-      DrawTextAt(dc, L"Spunta un sensore per mostrarlo nell'overlay.", SR({21, 60, 690, 80}), B->font, ui::col::Sub,
+      DrawTextAt(dc, T(L"Spunta un sensore per mostrarlo nell'overlay."), SR({21, 60, 690, 80}), B->font, ui::col::Sub,
                  DT_LEFT | DT_TOP);
   }
 
@@ -323,19 +329,19 @@ void Paint(HDC dc, const RECT& client) {
 
   // Riga del sensore selezionato
   const int r = SelectedRow();
-  std::wstring what = L"Seleziona un sensore spuntato per cambiare l'etichetta che compare nell'overlay.";
+  std::wstring what = T(L"Seleziona un sensore spuntato per cambiare l'etichetta che compare nell'overlay.");
   if (r >= 0 && r < int(B->rows.size()) && !B->rows[size_t(r)].header)
     if (const SensorEntry* e = FindEntry(B->rows[size_t(r)].id))
-      what = ToWide(e->group + "  ›  " + e->name) + (FindPick(e->id) ? L"" : L"   (non nell'overlay)");
-  DrawTextAt(dc, L"Etichetta nell'overlay", SR({20, 642, 186, 670}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
+      what = ToWide(e->group + "  ›  " + e->name) + (FindPick(e->id) ? L"" : T(L"   (non nell'overlay)"));
+  DrawTextAt(dc, T(L"Etichetta nell'overlay"), SR({20, 642, 186, 670}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   DrawTextAt(dc, what, SR({500, 642, 1020, 670}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   const RECT frame = SR({190, 642, 480, 642 + kRowH});
   ui::FillRound(dc, frame, S(6), ui::col::Input, B->focusedEdit ? ui::col::Accent : ui::col::Line);
 
   DrawTextAt(dc,
-             std::format(L"{} {} nell'overlay.  Nel layout libero ognuno è un blocco da spostare nell'Editor; "
+             TF(L"{} {} nell'overlay.  Nel layout libero ognuno è un blocco da spostare nell'Editor; "
                          L"nel preset RTSS compaiono sotto il preset.",
-                         B->picks.size(), B->picks.size() == 1 ? L"sensore" : L"sensori"),
+                         B->picks.size(), B->picks.size() == 1 ? T(L"sensore") : T(L"sensori")),
              SR({20, 712, 780, 740}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   ui::FillRound(dc, SR({690, 4, 1028, 84}), S(8), ui::col::Panel, ui::col::Line);
   const RECT sframe = SR({700, 12, 1020, 12 + kRowH});
@@ -431,8 +437,8 @@ HWND Make(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, in
 
 void Build() {
   HWND search = Make(L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 709, 18, 302, kRowH - 11, IDC_SEARCH);
-  SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Cerca (es. temperatura, ventola, disco)"));
-  Make(ui::kCheckClass, L"Solo quelli nell'overlay", WS_TABSTOP, 700, 52, 320, 24, IDC_ONLY_PICKED);
+  SendMessageW(search, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(T(L"Cerca (es. temperatura, ventola, disco)")));
+  Make(ui::kCheckClass, T(L"Solo quelli nell'overlay"), WS_TABSTOP, 700, 52, 320, 24, IDC_ONLY_PICKED);
 
   B->list = Make(WC_LISTVIEWW, L"",
                  WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
@@ -448,7 +454,7 @@ void Build() {
   ListView_SetImageList(B->list, B->rowHeight, LVSIL_SMALL);
   SetWindowSubclass(B->list, ListSubclass, 0, 0);
   const std::pair<const wchar_t*, int> cols[] = {
-      {L"Sensore", 420}, {L"Valore", 130}, {L"Minimo", 110}, {L"Massimo", 110}, {L"Nell'overlay come", 200}};
+      {T(L"Sensore"), 420}, {T(L"Valore"), 130}, {T(L"Minimo"), 110}, {T(L"Massimo"), 110}, {T(L"Nell'overlay come"), 200}};
   for (int i = 0; i < int(std::size(cols)); ++i) {
     LVCOLUMNW c{LVCF_TEXT | LVCF_WIDTH | LVCF_FMT};
     c.pszText = const_cast<wchar_t*>(cols[i].first);
@@ -457,11 +463,11 @@ void Build() {
     ListView_InsertColumn(B->list, i, &c);
   }
 
-  ui::MakeButton(Make(L"BUTTON", L"Temperatura CPU...", WS_TABSTOP | BS_OWNERDRAW, 500, 52, 180, 28, IDC_LHM),
+  ui::MakeButton(Make(L"BUTTON", T(L"Temperatura CPU..."), WS_TABSTOP | BS_OWNERDRAW, 500, 52, 180, 28, IDC_LHM),
                  ui::col::Panel, false);
   Make(L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 199, 648, 272, kRowH - 11, IDC_LABEL);
   SendMessageW(Item(IDC_LABEL), EM_LIMITTEXT, 40, 0);
-  ui::MakeButton(Make(L"BUTTON", L"Annulla", WS_TABSTOP | BS_OWNERDRAW, 800, 712, 104, 32, IDC_CANCEL), ui::col::Bg,
+  ui::MakeButton(Make(L"BUTTON", T(L"Annulla"), WS_TABSTOP | BS_OWNERDRAW, 800, 712, 104, 32, IDC_CANCEL), ui::col::Bg,
                  false);
   ui::MakeButton(Make(L"BUTTON", L"OK", WS_TABSTOP | BS_OWNERDRAW, 916, 712, 104, 32, IDC_OK), ui::col::Bg, true);
   Refresh(true);
@@ -602,7 +608,7 @@ bool RunSensorBrowser(HWND owner, HINSTANCE inst, HFONT uiFont, Profile& profile
     x = std::clamp(x, int(om.rcWork.left), std::max(int(om.rcWork.left), int(om.rcWork.right) - w));
     y = std::clamp(y, int(om.rcWork.top), std::max(int(om.rcWork.top), int(om.rcWork.bottom) - h));
   }
-  br.wnd = CreateWindowExW(0, kBrowserClass, (L"Sensori di sistema - " + ToWide(profile.name)).c_str(), style, x, y, w,
+  br.wnd = CreateWindowExW(0, kBrowserClass, (T(L"Sensori di sistema - ") + ToWide(profile.name)).c_str(), style, x, y, w,
                            h, owner, nullptr, inst, nullptr);
   if (!br.wnd) {
     B = previous;

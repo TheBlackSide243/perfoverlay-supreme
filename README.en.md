@@ -6,8 +6,6 @@
 
 It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **nothing is injected into games**.
 
-> The app UI is in Italian.
-
 ## Features
 
 - **FPS without hooks:**
@@ -34,12 +32,13 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - built in: CPU per core, full NVIDIA GPU data via NVML, disks (including SSD temperature), network and battery;
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
+- **English or Italian UI**: pick it in Settings › "Lingua / Language". The first time it follows the Windows language.
 
 ## Download and usage
 
 1. Download `PerfOverlaySupreme.exe` from [Releases](../../releases), or [build it](#building).
 2. Double-click it. The overlay starts as administrator, which reading FPS requires, and an icon appears next to the clock.
-3. To open the settings, double-click the exe again or right-click the tray icon and choose Impostazioni. The settings cover profiles, the editor, sensors and the store.
+3. To open the settings, double-click the exe again or right-click the tray icon and choose Settings. The settings cover profiles, the editor, sensors, the store and the UI language.
 
 | Hotkey | Action |
 |---|---|

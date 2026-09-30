@@ -24,7 +24,8 @@
 #include "settings/games_editor.h"
 #include "settings/layout_editor.h"
 #include "settings/sensor_browser.h"
-#include "settings/theme.h"
+#include "settings/theme.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -75,24 +76,28 @@ enum : int {
   IDC_IMPORT_RTSS,
   IDC_SENSORS,
   IDC_STORE,
+  IDC_LANG,
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
 };
 
 constexpr const char* kLayouts[] = {"bar", "vertical", "free", "rtss"};
-constexpr const wchar_t* kLayoutNames[] = {L"Barra orizzontale", L"Verticale", L"Libero (editor)",
-                                           L"Preset RTSS (importato)"};
+const wchar_t* const kLayoutNames[] = {T(L"Barra orizzontale"), T(L"Verticale"), T(L"Libero (editor)"),
+                                           T(L"Preset RTSS (importato)")};
 constexpr const char* kPositions[] = {"top-left", "top-right", "bottom-left", "bottom-right", "custom"};
-constexpr const wchar_t* kPositionNames[] = {L"In alto a sinistra", L"In alto a destra", L"In basso a sinistra",
-                                             L"In basso a destra", L"Personalizzata (X/Y)"};
+const wchar_t* const kPositionNames[] = {T(L"In alto a sinistra"), T(L"In alto a destra"), T(L"In basso a sinistra"),
+                                             T(L"In basso a destra"), T(L"Personalizzata (X/Y)")};
 constexpr const char* kOutOfGame[] = {"hide", "compact"};
-constexpr const wchar_t* kOutOfGameNames[] = {L"Nascondi", L"Profilo selezionato sul desktop"};
+// La lingua si mostra nel proprio nome, così si ritrova anche senza capire quella attiva.
+constexpr const char* kLangCodes[] = {"it", "en"};
+constexpr const wchar_t* kLangNames[] = {L"Italiano", L"English"};
+const wchar_t* const kOutOfGameNames[] = {T(L"Nascondi"), T(L"Profilo selezionato sul desktop")};
 
 constexpr int kColorCount = 7;
-constexpr const wchar_t* kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", L"Batteria", L"Testo", L"Sfondo"};
+const wchar_t* const kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", T(L"Batteria"), T(L"Testo"), T(L"Sfondo")};
 constexpr int kShowCount = 9;
-constexpr const wchar_t* kShowNames[kShowCount] = {L"FPS",   L"Mini-grafico FPS", L"Frame time",
+const wchar_t* const kShowNames[kShowCount] = {L"FPS",   T(L"Mini-grafico FPS"), L"Frame time",
                                                    L"P95 / P99", L"Stutter %",        L"CPU",
-                                                   L"GPU",   L"RAM",              L"Batteria (solo portatili)"};
+                                                   L"GPU",   L"RAM",              T(L"Batteria (solo portatili)")};
 
 Color& ColorRef(Profile& p, int i) {
   auto& c = p.colors;
@@ -136,7 +141,7 @@ struct State {
 State g;
 
 constexpr COLORREF kInputOff = RGB(32, 32, 38);  // campo disattivato
-constexpr int kClientW = 1000, kClientH = 772;
+constexpr int kClientW = 1000, kClientH = 806;
 constexpr int kRowH = 28;
 constexpr UINT_PTR kTimerMonitor = 1;
 
@@ -216,7 +221,7 @@ int GetSel(int id) { return std::max(0, ComboBox_GetCurSel(Item(id))); }
 void SetSel(int id, int i) { ComboBox_SetCurSel(Item(id), i); }
 
 // Riga di stato in basso: grigia per le informazioni, verde/rossa per l'esito del salvataggio.
-RECT StatusRect() { return SR({386, 722, 814, 754}); }
+RECT StatusRect() { return SR({386, 756, 814, 788}); }
 void Status(const std::wstring& s, COLORREF color = ui::col::Sub) {
   g.status = s;
   g.statusColor = color;
@@ -302,11 +307,11 @@ bool UiToProfile() {
   if (!IsDefault(p)) {
     const std::string name = GetUtf8(IDC_NAME);
     if (name.empty() || IEquals(name, "default")) {
-      MessageBoxW(g.wnd, L"Nome profilo non valido.", kAppName, MB_ICONWARNING);
+      MessageBoxW(g.wnd, T(L"Nome profilo non valido."), kAppName, MB_ICONWARNING);
       return false;
     }
     if (const Profile* other = FindProfile(g.profiles, name); other && other != &p) {
-      MessageBoxW(g.wnd, L"Esiste già un profilo con questo nome.", kAppName, MB_ICONWARNING);
+      MessageBoxW(g.wnd, T(L"Esiste già un profilo con questo nome."), kAppName, MB_ICONWARNING);
       return false;
     }
     if (name != p.name) {
@@ -338,7 +343,7 @@ bool UiToProfile() {
 void RefreshForcedCombo() {
   HWND c = Item(IDC_FORCED);
   ComboBox_ResetContent(c);
-  ComboBox_AddString(c, L"(automatico)");
+  ComboBox_AddString(c, T(L"(automatico)"));
   int sel = 0;
   for (size_t i = 0; i < g.profiles.size(); ++i) {
     ComboBox_AddString(c, ToWide(g.profiles[i].name).c_str());
@@ -356,7 +361,7 @@ void RefreshList() {
     if (IsDefault(p))
       label += L"	fallback";
     else if (!p.match.empty())
-      label += std::format(L"	{} {}", p.match.size(), p.match.size() == 1 ? L"gioco" : L"giochi");
+      label += std::format(L"	{} {}", p.match.size(), p.match.size() == 1 ? T(L"gioco") : T(L"giochi"));
     ListBox_AddString(l, label.c_str());
   }
   ListBox_SetCurSel(l, g.cur);
@@ -369,6 +374,7 @@ void GlobalToUi() {
   SetUtf8(IDC_HK_CYCLE, g.cfg.hotkeyCycleProfile);
   SetUtf8(IDC_HK_FPSONLY, g.cfg.hotkeyFpsOnly);
   SetSel(IDC_OUTOFGAME, IndexOf(kOutOfGame, g.cfg.outOfGame));
+  SetSel(IDC_LANG, CurrentLang() == Lang::En ? 1 : 0);
   SetCheck(IDC_FPSONLY, g.cfg.fpsOnly);
   SetCheck(IDC_AUTOLEARN, g.cfg.autoLearnGames);
   SetCheck(IDC_AUTOSTART, g.cfg.autostart);
@@ -384,7 +390,7 @@ bool UiToGlobal() {
     const std::string v = GetUtf8(id);
     unsigned mods, vk;
     if (!v.empty() && !ParseHotkey(v, mods, vk)) {
-      MessageBoxW(g.wnd, (L"Hotkey non valida: " + ToWide(v) + L"\nEsempi: Ctrl+Shift+O, Alt+F10").c_str(),
+      MessageBoxW(g.wnd, (T(L"Hotkey non valida: ") + ToWide(v) + T(L"\nEsempi: Ctrl+Shift+O, Alt+F10")).c_str(),
                   kAppName, MB_ICONWARNING);
       return false;
     }
@@ -401,6 +407,26 @@ bool UiToGlobal() {
 }
 
 // ------------------------------------------------------------------ salvataggio
+bool SaveAll();
+
+// Salva tutto nella nuova lingua e riapre le impostazioni, che vengono ricostruite con i nuovi testi.
+void OnChangeLanguage() {
+  const int sel = GetSel(IDC_LANG);
+  const std::string code = kLangCodes[sel >= 0 && sel < 2 ? sel : 0];
+  if (code == LangCode(CurrentLang())) return;
+  if (!UiToProfile() || !UiToGlobal()) {
+    SetSel(IDC_LANG, CurrentLang() == Lang::En ? 1 : 0);
+    return;
+  }
+  g.cfg.language = code;
+  SetLang(LangFromCode(code));
+  if (!SaveAll()) return;
+  wchar_t exe[MAX_PATH] = {};
+  GetModuleFileNameW(nullptr, exe, MAX_PATH);
+  ShellExecuteW(nullptr, L"open", exe, L"--settings", nullptr, SW_SHOWNORMAL);
+  DestroyWindow(g.wnd);
+}
+
 bool SaveAll() {
   // Sul desktop compare il profilo selezionato qui.
   if (g.cur >= 0 && size_t(g.cur) < g.profiles.size()) g.cfg.desktopProfile = g.profiles[size_t(g.cur)].name;
@@ -416,9 +442,9 @@ bool SaveAll() {
   // L'avvio con Windows lo applica PerfOverlay.exe (elevato) quando ricarica la config.
   const bool notified = NotifyMonitorReload();
   if (!ok)
-    Status(L"Errore durante il salvataggio: vedi overlay.log", ui::col::Bad);
+    Status(T(L"Errore durante il salvataggio: vedi overlay.log"), ui::col::Bad);
   else
-    Status(notified ? L"Salvato. Overlay aggiornato." : L"Salvato. (l'overlay non è in esecuzione)", ui::col::Good);
+    Status(notified ? T(L"Salvato. Overlay aggiornato.") : T(L"Salvato. (l'overlay non è in esecuzione)"), ui::col::Good);
   LogInfo("Impostazioni salvate ({} profili)", g.profiles.size());
   return ok;
 }
@@ -429,7 +455,7 @@ std::filesystem::path PickFile(bool save, const std::wstring& suggested) {
   wcsncpy_s(buf, suggested.c_str(), _TRUNCATE);
   OPENFILENAMEW ofn{sizeof(ofn)};
   ofn.hwndOwner = g.wnd;
-  ofn.lpstrFilter = L"Profili PerfOverlay (*.json)\0*.json\0Tutti i file\0*.*\0";
+  ofn.lpstrFilter = T(L"Profili PerfOverlay (*.json)\0*.json\0Tutti i file\0*.*\0");
   ofn.lpstrFile = buf;
   ofn.nMaxFile = MAX_PATH;
   ofn.lpstrDefExt = L"json";
@@ -442,10 +468,10 @@ void Export(const nlohmann::json& j, const std::wstring& suggested) {
   const auto path = PickFile(true, suggested);
   if (path.empty()) return;
   if (WriteJsonFile(path, j)) {
-    Status(L"Esportato: " + path.filename().wstring());
+    Status(T(L"Esportato: ") + path.filename().wstring());
     LogInfo("Esportato {}", ToUtf8(path.wstring()));
   } else {
-    MessageBoxW(g.wnd, L"Esportazione non riuscita.", kAppName, MB_ICONERROR);
+    MessageBoxW(g.wnd, T(L"Esportazione non riuscita."), kAppName, MB_ICONERROR);
   }
 }
 
@@ -454,16 +480,16 @@ bool MergeProfile(Profile p) {
   Sanitize(p);
   for (auto& existing : g.profiles) {
     if (!IEquals(existing.name, p.name)) continue;
-    const std::wstring msg = L"Il profilo \"" + ToWide(p.name) +
-                             L"\" esiste già.\n\nSì = sostituisci\nNo = importa con un nuovo nome\nAnnulla = salta";
-    switch (MessageBoxW(g.wnd, msg.c_str(), L"Conflitto profilo", MB_YESNOCANCEL | MB_ICONQUESTION)) {
+    const std::wstring msg = T(L"Il profilo \"") + ToWide(p.name) +
+                             T(L"\" esiste già.\n\nSì = sostituisci\nNo = importa con un nuovo nome\nAnnulla = salta");
+    switch (MessageBoxW(g.wnd, msg.c_str(), T(L"Conflitto profilo"), MB_YESNOCANCEL | MB_ICONQUESTION)) {
       case IDYES:
         p.name = existing.name;
         existing = p;
         return true;
       case IDNO:
         if (IsDefault(p)) p.match.clear();
-        p.name = UniqueName(IsDefault(p) ? std::string("default importato") : p.name);
+        p.name = UniqueName(IsDefault(p) ? std::string(TU("default importato")) : p.name);
         g.profiles.push_back(p);
         return true;
       default:
@@ -480,7 +506,7 @@ void Import(bool acceptGlobals) {
   const auto j = ReadJsonFile(path);
   const auto bundle = j ? ParseImport(*j) : std::nullopt;
   if (!bundle) {
-    MessageBoxW(g.wnd, L"File non riconosciuto come profilo o backup PerfOverlay.", kAppName, MB_ICONWARNING);
+    MessageBoxW(g.wnd, T(L"File non riconosciuto come profilo o backup PerfOverlay."), kAppName, MB_ICONWARNING);
     return;
   }
   if (!UiToProfile()) return;
@@ -489,13 +515,13 @@ void Import(bool acceptGlobals) {
 
   bool globals = false;
   if ((bundle->config || bundle->games) && acceptGlobals &&
-      MessageBoxW(g.wnd, L"Il file contiene anche impostazioni globali e lista giochi.\nSostituire quelle attuali?",
+      MessageBoxW(g.wnd, T(L"Il file contiene anche impostazioni globali e lista giochi.\nSostituire quelle attuali?"),
                   kAppName, MB_YESNO | MB_ICONQUESTION) == IDYES) {
     if (bundle->config) g.cfg = *bundle->config;
     if (bundle->games) g.games = *bundle->games;
     globals = true;
   } else if ((bundle->config || bundle->games) && !acceptGlobals) {
-    Status(L"Nota: il file contiene impostazioni globali, usa \"Importa tutto\" o \"Ripristina impostazioni\".");
+    Status(T(L"Nota: il file contiene impostazioni globali, usa \"Importa tutto\" o \"Ripristina impostazioni\"."));
   }
   if (!imported && !globals) return;
 
@@ -511,7 +537,7 @@ void Import(bool acceptGlobals) {
   ProfileToUi();
   GlobalToUi();
   SaveAll();
-  Status(std::format(L"Importati {} profili{} da {}", imported, globals ? L" + impostazioni globali" : L"",
+  Status(TF(L"Importati {} profili{} da {}", imported, globals ? T(L" + impostazioni globali") : L"",
                      path.filename().wstring()));
   LogInfo("Import da {}: {} profili, globali={}", ToUtf8(path.wstring()), imported, globals);
 }
@@ -522,7 +548,7 @@ void Import(bool acceptGlobals) {
 // per tutti i giochi, così le modifiche appena fatte compaiono subito.
 void OfferUseEverywhere(const Profile& p) {
   if (IsDefault(p) || !p.match.empty() || IEquals(g.cfg.forcedProfile, p.name)) return;
-  const std::wstring q = std::format(
+  const std::wstring q = TF(
       L"Il profilo \"{}\" non è associato a nessun gioco, quindi in gioco si vede il profilo \"default\".\n\n"
       L"Vuoi usare \"{}\" per tutti i giochi?\n(Impostazioni globali > Profilo forzato)",
       ToWide(p.name), ToWide(p.name));
@@ -537,7 +563,7 @@ void OnImportRtss() {
   wchar_t buf[MAX_PATH] = {};
   OPENFILENAMEW ofn{sizeof(ofn)};
   ofn.hwndOwner = g.wnd;
-  ofn.lpstrFilter = L"Preset RTSS OverlayEditor (*.ovx;*.ovl)\0*.ovx;*.ovl\0Tutti i file\0*.*\0";
+  ofn.lpstrFilter = T(L"Preset RTSS OverlayEditor (*.ovx;*.ovl)\0*.ovx;*.ovl\0Tutti i file\0*.*\0");
   ofn.lpstrFile = buf;
   ofn.nMaxFile = MAX_PATH;
   ofn.Flags = OFN_NOCHANGEDIR | OFN_FILEMUSTEXIST;
@@ -545,7 +571,7 @@ void OnImportRtss() {
 
   const auto r = ImportRtssPreset(buf);
   if (!r.ok) {
-    MessageBoxW(g.wnd, (L"Preset non importato: " + ToWide(r.error)).c_str(), kAppName, MB_ICONWARNING);
+    MessageBoxW(g.wnd, (T(L"Preset non importato: ") + ToWide(r.error)).c_str(), kAppName, MB_ICONWARNING);
     return;
   }
   Profile& p = g.profiles[size_t(g.cur)];
@@ -554,10 +580,10 @@ void OnImportRtss() {
   ProfileToUi();
   OfferUseEverywhere(p);
   SaveAll();
-  std::wstring msg = std::format(L"Preset \"{}\" applicato al profilo \"{}\": {} layer.", ToWide(r.layout.name),
+  std::wstring msg = TF(L"Preset \"{}\" applicato al profilo \"{}\": {} layer.", ToWide(r.layout.name),
                                  ToWide(p.name), r.layout.layers.size());
   if (!r.unsupported.empty()) {
-    msg += L" Dati non disponibili (mostrano N/A): ";
+    msg += T(L" Dati non disponibili (mostrano N/A): ");
     for (size_t i = 0; i < r.unsupported.size(); ++i) msg += (i ? L", " : L"") + ToWide(r.unsupported[i]);
   }
   Status(msg, r.unsupported.empty() ? ui::col::Good : ui::col::Sub);
@@ -586,7 +612,7 @@ void OnSelectProfile() {
 void OnNewProfile() {
   if (!UiToProfile()) return;
   Profile p = g.profiles[size_t(g.cur)];  // parte dalle impostazioni del profilo corrente
-  p.name = UniqueName("Nuovo profilo");
+  p.name = UniqueName(TU("Nuovo profilo"));
   p.match.clear();
   g.profiles.push_back(p);
   g.cur = int(g.profiles.size()) - 1;
@@ -599,7 +625,7 @@ void OnNewProfile() {
 void OnDeleteProfile() {
   if (g.cur <= 0 || IsDefault(g.profiles[size_t(g.cur)])) return;
   const auto& p = g.profiles[size_t(g.cur)];
-  if (MessageBoxW(g.wnd, (L"Eliminare il profilo \"" + ToWide(p.name) + L"\"?").c_str(), kAppName,
+  if (MessageBoxW(g.wnd, (T(L"Eliminare il profilo \"") + ToWide(p.name) + L"\"?").c_str(), kAppName,
                   MB_YESNO | MB_ICONQUESTION) != IDYES)
     return;
   g.removed.push_back(p.name);
@@ -608,7 +634,7 @@ void OnDeleteProfile() {
   g.cur = 0;
   RefreshList();
   ProfileToUi();
-  Status(L"Profilo eliminato (premi Salva per confermare).");
+  Status(T(L"Profilo eliminato (premi Salva per confermare)."));
 }
 
 void OnPickColor(int i) {
@@ -636,7 +662,7 @@ void OnSave() {
 // Campo hotkey in sola lettura: con "Cambia" (o un clic sul campo) si preme la combinazione.
 // Esc annulla, Canc/Backspace da soli tolgono la hotkey.
 constexpr int kHotkeyIds[] = {IDC_HK_TOGGLE, IDC_HK_CYCLE, IDC_HK_FPSONLY};
-constexpr const wchar_t* kHotkeyNames[] = {L"Mostra / nascondi", L"Cambia profilo", L"Solo FPS"};
+const wchar_t* const kHotkeyNames[] = {T(L"Mostra / nascondi"), T(L"Cambia profilo"), T(L"Solo FPS")};
 int g_capturing = 0;          // id del campo in acquisizione, 0 = nessuno
 std::wstring g_captureBefore;  // valore da ripristinare se si annulla
 
@@ -685,7 +711,7 @@ void EndCapture(bool commit, const std::wstring& value = {}) {
   const int id = g_capturing;
   g_capturing = 0;
   SetText(id, commit ? value : g_captureBefore);
-  SetWindowTextW(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), L"Cambia");
+  SetWindowTextW(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), T(L"Cambia"));
   InvalidateRect(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), nullptr, FALSE);
   NotifyMonitorSuspendHotkeys(false);
   InvalidateFrame(id);
@@ -697,12 +723,12 @@ void StartCapture(int id) {
   NotifyMonitorSuspendHotkeys(true);  // altrimenti PerfOverlay.exe "ruberebbe" le sue combinazioni
   g_capturing = id;
   g_captureBefore = GetText(id);
-  SetText(id, L"Premi i tasti...");
-  SetWindowTextW(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), L"Annulla");
+  SetText(id, T(L"Premi i tasti..."));
+  SetWindowTextW(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), T(L"Annulla"));
   InvalidateRect(Item(id + (IDC_HK_BTN - IDC_HK_TOGGLE)), nullptr, FALSE);
   SetFocus(Item(id));
   InvalidateFrame(id);
-  Status(L"Premi la nuova combinazione, es. Ctrl+Shift+O.  Esc = annulla, Canc = nessuna hotkey.",
+  Status(T(L"Premi la nuova combinazione, es. Ctrl+Shift+O.  Esc = annulla, Canc = nessuna hotkey."),
          ui::col::Accent);
 }
 
@@ -715,7 +741,7 @@ bool AcceptCombo(const std::wstring& combo) {
     if (other == g_capturing) continue;
     const std::string cur = GetUtf8(other);
     if (!cur.empty() && IEquals(cur, text)) {
-      Status(combo + L" è già usata per \"" + kHotkeyNames[HotkeyIndex(other)] + L"\". Premi un'altra combinazione.",
+      Status(combo + T(L" è già usata per \"") + kHotkeyNames[HotkeyIndex(other)] + T(L"\". Premi un'altra combinazione."),
              ui::col::Bad);
       return false;
     }
@@ -723,13 +749,13 @@ bool AcceptCombo(const std::wstring& combo) {
   // Prova a registrarla: se fallisce, la usa già un altro programma.
   constexpr int kProbeId = 0xBFFF;
   if (!RegisterHotKey(g.wnd, kProbeId, mods | MOD_NOREPEAT, vk)) {
-    Status(combo + L" è già usata da un altro programma. Premi un'altra combinazione.", ui::col::Bad);
+    Status(combo + T(L" è già usata da un altro programma. Premi un'altra combinazione."), ui::col::Bad);
     return false;
   }
   UnregisterHotKey(g.wnd, kProbeId);
   const std::wstring name = kHotkeyNames[HotkeyIndex(g_capturing)];
   EndCapture(true, combo);
-  Status(L"Hotkey \"" + name + L"\" = " + combo + L".  Premi \"Salva e applica\" per attivarla.", ui::col::Good);
+  Status(T(L"Hotkey \"") + name + L"\" = " + combo + T(L".  Premi \"Salva e applica\" per attivarla."), ui::col::Good);
   return true;
 }
 
@@ -757,23 +783,23 @@ LRESULT CALLBACK HotkeyEditProc(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR
       }
       if (vk == VK_ESCAPE && mods.empty()) {
         EndCapture(false);
-        Status(L"Modifica hotkey annullata.");
+        Status(T(L"Modifica hotkey annullata."));
         return 0;
       }
       if ((vk == VK_BACK || vk == VK_DELETE) && mods.empty()) {
         EndCapture(true, L"");
-        Status(L"Hotkey rimossa.  Premi \"Salva e applica\" per confermare.", ui::col::Good);
+        Status(T(L"Hotkey rimossa.  Premi \"Salva e applica\" per confermare."), ui::col::Good);
         return 0;
       }
       const std::wstring key = KeyName(vk);
       if (key.empty()) {
-        Status(L"Tasto non supportato: usa lettere, numeri, F1-F24, Home, End, Ins, Canc, PagSu, PagGiù.",
+        Status(T(L"Tasto non supportato: usa lettere, numeri, F1-F24, Home, End, Ins, Canc, PagSu, PagGiù."),
                ui::col::Bad);
         return 0;
       }
       const bool standalone = (vk >= VK_F1 && vk <= VK_F24) || vk == VK_PAUSE || vk == VK_SCROLL;
       if (mods.empty() && !standalone) {
-        Status(L"Aggiungi almeno Ctrl, Shift o Alt: da sola \"" + key + L"\" scatterebbe mentre scrivi o giochi.",
+        Status(T(L"Aggiungi almeno Ctrl, Shift o Alt: da sola \"") + key + T(L"\" scatterebbe mentre scrivi o giochi."),
                ui::col::Bad);
         return 0;
       }
@@ -784,7 +810,7 @@ LRESULT CALLBACK HotkeyEditProc(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR
     case WM_SYSKEYUP:
       if (capturing) {
         const std::wstring mods = ModifierPrefix();
-        SetText(id, mods.empty() ? L"Premi i tasti..." : mods + L"...");
+        SetText(id, mods.empty() ? T(L"Premi i tasti...") : mods + L"...");
         return 0;
       }
       break;
@@ -819,97 +845,99 @@ void HotkeyField(int id, int x, int y) {
   HWND e = Item(id);
   SendMessageW(e, EM_SETREADONLY, TRUE, 0);
   SetWindowSubclass(e, HotkeyEditProc, 0, 0);
-  Button(id + (IDC_HK_BTN - IDC_HK_TOGGLE), L"Cambia", x + 112, y, 58, kRowH, ui::col::Panel);
+  Button(id + (IDC_HK_BTN - IDC_HK_TOGGLE), T(L"Cambia"), x + 112, y, 58, kRowH, ui::col::Panel);
 }
 
 // ------------------------------------------------------------------ costruzione UI
 void BuildUi() {
   // Colonna 1: profili
-  Panel(L"PROFILI", 20, 104, 240, 240);
+  Panel(T(L"PROFILI"), 20, 104, 240, 240);
   HWND list = Make(L"LISTBOX", L"",
                    WS_TABSTOP | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS,
                    28, 112, 224, 224, IDC_LIST);
   ApplyDarkControlTheme(list, L"DarkMode_Explorer");
   const std::pair<int, const wchar_t*> btns[] = {
-      {IDC_NEW, L"Nuovo"},                    {IDC_DELETE, L"Elimina"},
-      {IDC_EXPORT_ONE, L"Esporta profilo"},   {IDC_IMPORT_ONE, L"Importa profilo"},
-      {IDC_EXPORT_ALL, L"Esporta tutto"},     {IDC_IMPORT_ALL, L"Importa tutto"},
-      {IDC_BACKUP_CFG, L"Backup config"},     {IDC_RESTORE_CFG, L"Ripristina config"}};
+      {IDC_NEW, T(L"Nuovo")},                    {IDC_DELETE, T(L"Elimina")},
+      {IDC_EXPORT_ONE, T(L"Esporta profilo")},   {IDC_IMPORT_ONE, T(L"Importa profilo")},
+      {IDC_EXPORT_ALL, T(L"Esporta tutto")},     {IDC_IMPORT_ALL, T(L"Importa tutto")},
+      {IDC_BACKUP_CFG, T(L"Backup config")},     {IDC_RESTORE_CFG, T(L"Ripristina config")}};
   for (size_t i = 0; i < std::size(btns); ++i)
     Button(btns[i].first, btns[i].second, 20 + int(i % 2) * 125, 356 + int(i / 2) * 36, 115);
-  Button(IDC_IMPORT_RTSS, L"Importa RTSS...", 20, 500, 115);
-  Button(IDC_STORE, L"Store overlay...", 145, 500, 115, 30, ui::col::Bg, true);
+  Button(IDC_IMPORT_RTSS, T(L"Importa RTSS..."), 20, 500, 115);
+  Button(IDC_STORE, T(L"Store overlay..."), 145, 500, 115, 30, ui::col::Bg, true);
 
   // Colonna 2: profilo selezionato
-  Panel(L"PROFILO SELEZIONATO", 280, 104, 400, 440);
+  Panel(T(L"PROFILO SELEZIONATO"), 280, 104, 400, 440);
   constexpr int lx = 296, lw = 130, cx = 430, cw = 234;
   auto row = [](int i) { return 118 + i * 34; };
-  Label(L"Nome", lx, row(0), lw);
+  Label(T(L"Nome"), lx, row(0), lw);
   Edit(IDC_NAME, cx, row(0), cw);
-  Label(L"Giochi", lx, row(1), lw);
-  Edit(IDC_MATCH, cx, row(1), cw, L"gioco.exe; altro.exe|Titolo");
+  Label(T(L"Giochi"), lx, row(1), lw);
+  Edit(IDC_MATCH, cx, row(1), cw, T(L"gioco.exe; altro.exe|Titolo"));
   Label(L"Layout", lx, row(2), lw);
   Combo(IDC_LAYOUT, cx, row(2), 150, kLayoutNames);
   Button(IDC_EDITOR, L"Editor...", cx + 156, row(2), cw - 156, kRowH, ui::col::Panel);
-  Label(L"Posizione", lx, row(3), lw);
+  Label(T(L"Posizione"), lx, row(3), lw);
   Combo(IDC_POSITION, cx, row(3), cw, kPositionNames);
-  Label(L"X / Y (px a 1080p)", lx, row(4), lw);
+  Label(T(L"X / Y (px a 1080p)"), lx, row(4), lw);
   Edit(IDC_X, cx, row(4), 112, L"X");
   Edit(IDC_Y, cx + 122, row(4), 112, L"Y");
   Label(L"Font", lx, row(5), lw);
   static const wchar_t* const kFonts[] = {L"sans", L"mono", L"Segoe UI", L"Consolas", L"Bahnschrift"};
   Combo(IDC_FONT, cx, row(5), cw, kFonts, true);
-  Label(L"Dimensione (1080p)", lx, row(6), lw);
+  Label(T(L"Dimensione (1080p)"), lx, row(6), lw);
   Edit(IDC_FONTSIZE, cx, row(6), 70);
-  Check(IDC_BOLD, L"Grassetto", cx + 84, row(6) + 2, 150);
-  Label(L"Opacità sfondo %", lx, row(7), lw);
+  Check(IDC_BOLD, T(L"Grassetto"), cx + 84, row(6) + 2, 150);
+  Label(T(L"Opacità sfondo %"), lx, row(7), lw);
   Edit(IDC_OPACITY, cx, row(7), 70);
-  Check(IDC_AUTOSCALE, L"Scala con risoluzione", cx + 84, row(7) + 2, 160);
-  Label(L"Margine bordo (px)", lx, row(8), lw);
+  Check(IDC_AUTOSCALE, T(L"Scala con risoluzione"), cx + 84, row(7) + 2, 160);
+  Label(T(L"Margine bordo (px)"), lx, row(8), lw);
   Edit(IDC_MARGIN, cx, row(8), 70);
-  Label(L"FPS rosso sotto", lx, row(9), lw);
+  Label(T(L"FPS rosso sotto"), lx, row(9), lw);
   Edit(IDC_FPSRED, cx, row(9), 70);
-  Label(L"FPS giallo sotto", lx, row(10), lw);
+  Label(T(L"FPS giallo sotto"), lx, row(10), lw);
   Edit(IDC_FPSYELLOW, cx, row(10), 70);
-  Button(IDC_SENSORS, L"Sensori di sistema (temperature, ventole, dischi...)", lx, row(11) + 6, cx + cw - lx,
+  Button(IDC_SENSORS, T(L"Sensori di sistema (temperature, ventole, dischi...)"), lx, row(11) + 6, cx + cw - lx,
          32, ui::col::Panel);
 
   // Colonna 3: elementi visibili e colori
-  Panel(L"ELEMENTI VISIBILI", 700, 104, 280, 248);
+  Panel(T(L"ELEMENTI VISIBILI"), 700, 104, 280, 248);
   for (int i = 0; i < kShowCount; ++i) Check(IDC_SHOW + i, kShowNames[i], 716, 116 + i * 26, 250);
-  Panel(L"COLORI", 700, 390, 280, 154);
+  Panel(T(L"COLORI"), 700, 390, 280, 154);
   for (int i = 0; i < kColorCount; ++i)
     Button(IDC_COLOR_BTN + i, kColorNames[i], 712 + (i % 2) * 134, 402 + (i / 2) * 34, 122, 28, ui::col::Panel);
 
   // Riga in basso: impostazioni globali
-  Panel(L"IMPOSTAZIONI GLOBALI", 20, 584, 960, 122);
+  Panel(T(L"IMPOSTAZIONI GLOBALI"), 20, 584, 960, 156);
   auto grow = [](int i) { return 598 + i * 34; };
   Label(L"Refresh (ms)", 36, grow(0), 120);
   Edit(IDC_REFRESH, 160, grow(0), 80);
-  Label(L"Fuori dal gioco", 36, grow(1), 120);
+  Label(T(L"Fuori dal gioco"), 36, grow(1), 120);
   Combo(IDC_OUTOFGAME, 160, grow(1), 156, kOutOfGameNames);
-  Label(L"Profilo forzato", 36, grow(2), 120);
+  Label(T(L"Profilo forzato"), 36, grow(2), 120);
   Make(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, 160, grow(2) + 1, 156, 240, IDC_FORCED);
   ApplyDarkControlTheme(Item(IDC_FORCED), L"DarkMode_CFD");
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, 0, S(22));
-  Label(L"Mostra / nascondi", 344, grow(0), 136);
+  Label(L"Lingua / Language", 36, grow(3), 120);
+  Combo(IDC_LANG, 160, grow(3), 156, kLangNames);
+  Label(T(L"Mostra / nascondi"), 344, grow(0), 136);
   HotkeyField(IDC_HK_TOGGLE, 484, grow(0));
-  Label(L"Cambia profilo", 344, grow(1), 136);
+  Label(T(L"Cambia profilo"), 344, grow(1), 136);
   HotkeyField(IDC_HK_CYCLE, 484, grow(1));
-  Label(L"Solo FPS", 344, grow(2), 136);
+  Label(T(L"Solo FPS"), 344, grow(2), 136);
   HotkeyField(IDC_HK_FPSONLY, 484, grow(2));
-  Check(IDC_FPSONLY, L"Modalità solo FPS", 664, grow(0) + 2, 300);
-  Check(IDC_AUTOLEARN, L"Rileva nuovi giochi automaticamente", 664, grow(1) + 2, 300);
-  Check(IDC_AUTOSTART, L"Avvia PerfOverlay Supreme con Windows", 664, grow(2) + 2, 300);
+  Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 664, grow(0) + 2, 300);
+  Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), 664, grow(1) + 2, 300);
+  Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), 664, grow(2) + 2, 300);
 
   // Barra inferiore
-  Button(IDC_EDIT_GAMES, L"Lista giochi...", 20, 722, 176, 32);
-  Button(IDC_OPEN_FOLDER, L"Apri cartella dati", 204, 722, 168, 32);
-  Button(IDC_SAVE, L"Salva e applica", 830, 722, 150, 32, ui::col::Bg, true);
+  Button(IDC_EDIT_GAMES, T(L"Lista giochi..."), 20, 756, 176, 32);
+  Button(IDC_OPEN_FOLDER, T(L"Apri cartella dati"), 204, 756, 168, 32);
+  Button(IDC_SAVE, T(L"Salva e applica"), 830, 756, 150, 32, ui::col::Bg, true);
 
   // Intestazione: avvio dell'overlay se non è in esecuzione
-  Button(IDC_LAUNCH, L"Avvia overlay", 850, 26, 130, 30);
+  Button(IDC_LAUNCH, T(L"Avvia overlay"), 850, 26, 130, 30);
 }
 
 // ------------------------------------------------------------------ disegno
@@ -926,10 +954,10 @@ void Paint(HDC dc, const RECT& client) {
   // Intestazione (come Decky Manager e SteamImporter): icona, titolo d'accento, sottotitolo.
   DrawIconEx(dc, S(20), S(18), g.icon, S(44), S(44), 0, nullptr, DI_NORMAL);
   DrawTextAt(dc, kAppTitleUpper, SR({76, 14, 600, 46}), g.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
-  DrawTextAt(dc, L"Overlay prestazioni per i giochi  ·  profili per gioco  ·  export / import",
+  DrawTextAt(dc, T(L"Overlay prestazioni per i giochi  ·  profili per gioco  ·  export / import"),
              SR({77, 46, 700, 68}), g.font, ui::col::Sub, DT_LEFT | DT_TOP);
   const int right = g.monitorRunning ? 980 : 838;
-  DrawTextAt(dc, g.monitorRunning ? L"●  Overlay in esecuzione" : L"●  Overlay non avviato", SR({600, 26, right, 56}),
+  DrawTextAt(dc, g.monitorRunning ? T(L"●  Overlay in esecuzione") : T(L"●  Overlay non avviato"), SR({600, 26, right, 56}),
              g.fontBold, g.monitorRunning ? ui::col::Good : ui::col::Bad, DT_RIGHT | DT_VCENTER);
 
   for (const auto& p : g_panels) {
@@ -1069,6 +1097,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       }
       if (id == IDC_LIST && code == LBN_SELCHANGE) {
         OnSelectProfile();
+      } else if (id == IDC_LANG && code == CBN_SELCHANGE) {
+        OnChangeLanguage();
       } else if (id == IDC_POSITION && code == CBN_SELCHANGE) {
         const bool custom = GetSel(IDC_POSITION) == 4;
         EnableField(IDC_X, custom);
@@ -1077,7 +1107,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         const int edit = kHotkeyIds[id - IDC_HK_BTN];
         if (g_capturing == edit) {
           EndCapture(false);
-          Status(L"Modifica hotkey annullata.");
+          Status(T(L"Modifica hotkey annullata."));
         } else {
           StartCapture(edit);
         }
@@ -1090,9 +1120,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
               Profile& p = g.profiles[size_t(g.cur)];
               if (p.layout == "rtss" && p.rtss.advanced) {
                 MessageBoxW(g.wnd,
-                            L"Questo è un preset RTSS avanzato (immagini, grafici e formule, es. TroyMetrics): "
+                            T(L"Questo è un preset RTSS avanzato (immagini, grafici e formule, es. TroyMetrics): "
                             L"viene mostrato così com'è stato disegnato nell'OverlayEditor di RTSS.\n\n"
-                            L"Qui puoi cambiarne posizione (Posizione, X / Y) e grandezza (Dimensione).",
+                            L"Qui puoi cambiarne posizione (Posizione, X / Y) e grandezza (Dimensione)."),
                             kAppName, MB_ICONINFORMATION);
                 break;
               }
@@ -1100,8 +1130,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ProfileToUi();
                 OfferUseEverywhere(p);
                 SaveAll();
-                Status(std::format(L"{} di \"{}\" salvato e applicato.",
-                                   p.layout == "rtss" ? L"Preset RTSS" : L"Layout libero", ToWide(p.name)),
+                Status(TF(L"{} di \"{}\" salvato e applicato.",
+                                   p.layout == "rtss" ? L"Preset RTSS" : T(L"Layout libero"), ToWide(p.name)),
                        ui::col::Good);
               }
             }
@@ -1113,7 +1143,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ProfileToUi();
                 OfferUseEverywhere(p);
                 SaveAll();
-                Status(L"Overlay applicato al profilo \"" + ToWide(p.name) + L"\" e salvato.", ui::col::Good);
+                Status(T(L"Overlay applicato al profilo \"") + ToWide(p.name) + T(L"\" e salvato."), ui::col::Good);
               }
             }
             break;
@@ -1124,8 +1154,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 Sanitize(p);
                 OfferUseEverywhere(p);
                 SaveAll();
-                Status(std::format(L"{} {} nell'overlay di \"{}\": salvato e applicato.", p.sensors.size(),
-                                   p.sensors.size() == 1 ? L"sensore" : L"sensori", ToWide(p.name)),
+                Status(TF(L"{} {} nell'overlay di \"{}\": salvato e applicato.", p.sensors.size(),
+                                   p.sensors.size() == 1 ? T(L"sensore") : T(L"sensori"), ToWide(p.name)),
                        ui::col::Good);
               }
             }
@@ -1149,9 +1179,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (RunGamesEditor(hwnd, g.inst, g.font, g.games)) {
               const bool saved = SaveGames(g.games);
               NotifyMonitorReload();
-              Status(saved ? std::format(L"Lista giochi salvata: {} giochi, {} esclusi.",
+              Status(saved ? TF(L"Lista giochi salvata: {} giochi, {} esclusi.",
                                          g.games.known.size() + g.games.learned.size(), g.games.exclude.size())
-                           : std::wstring(L"Errore nel salvataggio di games.json"),
+                           : std::wstring(T(L"Errore nel salvataggio di games.json")),
                      saved ? ui::col::Good : ui::col::Bad);
             }
             break;
@@ -1220,7 +1250,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
   RECT r{0, 0, S(kClientW), S(kClientH)};
   AdjustWindowRect(&r, style, FALSE);
-  g.wnd = CreateWindowExW(0, wc.lpszClassName, L"PerfOverlay Supreme - Impostazioni", style, CW_USEDEFAULT, CW_USEDEFAULT,
+  g.wnd = CreateWindowExW(0, wc.lpszClassName, T(L"PerfOverlay Supreme - Impostazioni"), style, CW_USEDEFAULT, CW_USEDEFAULT,
                           r.right - r.left, r.bottom - r.top, nullptr, nullptr, inst, nullptr);
   if (!g.wnd) return 1;
   ApplyDarkTitleBar(g.wnd, ui::col::Bg);
@@ -1231,7 +1261,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   GlobalToUi();
   UpdateMonitorState();
   SetTimer(g.wnd, kTimerMonitor, 1500, nullptr);
-  Status(L"Il profilo \"default\" vale per tutti i giochi senza un profilo dedicato.");
+  Status(T(L"Il profilo \"default\" vale per tutti i giochi senza un profilo dedicato."));
   ShowWindow(g.wnd, show);
 
   MSG msg;

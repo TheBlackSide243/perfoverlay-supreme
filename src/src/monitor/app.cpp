@@ -17,7 +17,8 @@
 #include "common/util.h"
 #include "common/winutil.h"
 #include "monitor/overlay_content.h"
-#include "monitor/rtss_text.h"
+#include "monitor/rtss_text.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -150,6 +151,7 @@ LRESULT App::Handle(UINT msg, WPARAM wp, LPARAM lp) {
 
 void App::LoadAll() {
   cfg_ = LoadConfig();
+  SetLang(LangFromCode(cfg_.language));  // menu della tray e sensori nella lingua scelta
   games_ = LoadGames();
   profiles_ = LoadProfiles();
   rtssLoaded_ = nullptr;  // i profili sono nuovi: il motore RTSS va ricaricato
@@ -340,22 +342,22 @@ void App::RemoveTray() {
 void App::ShowTrayMenu() {
   HMENU menu = CreatePopupMenu();
   HMENU prof = CreatePopupMenu();
-  AppendMenuW(prof, MF_STRING | (cfg_.forcedProfile.empty() ? MF_CHECKED : 0), kMenuAuto, L"Automatico (per gioco)");
+  AppendMenuW(prof, MF_STRING | (cfg_.forcedProfile.empty() ? MF_CHECKED : 0), kMenuAuto, T(L"Automatico (per gioco)"));
   AppendMenuW(prof, MF_SEPARATOR, 0, nullptr);
   for (size_t i = 0; i < profiles_.size() && i < 500; ++i) {
     const bool checked = IEquals(profiles_[i].name, cfg_.forcedProfile);
     AppendMenuW(prof, MF_STRING | (checked ? MF_CHECKED : 0), kMenuProfileBase + UINT(i),
                 ToWide(profiles_[i].name).c_str());
   }
-  AppendMenuW(menu, MF_STRING, kMenuToggle, L"Mostra/nascondi overlay");
-  AppendMenuW(menu, MF_STRING | (cfg_.fpsOnly ? MF_CHECKED : 0), kMenuFpsOnly, L"Solo FPS");
-  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(prof), L"Profilo");
+  AppendMenuW(menu, MF_STRING, kMenuToggle, T(L"Mostra/nascondi overlay"));
+  AppendMenuW(menu, MF_STRING | (cfg_.fpsOnly ? MF_CHECKED : 0), kMenuFpsOnly, T(L"Solo FPS"));
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(prof), T(L"Profilo"));
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-  AppendMenuW(menu, MF_STRING, kMenuSettings, L"Impostazioni...");
+  AppendMenuW(menu, MF_STRING, kMenuSettings, T(L"Impostazioni..."));
   AppendMenuW(menu, MF_STRING, kMenuTest, L"Test overlay (DirectX 11/12)");
-  AppendMenuW(menu, MF_STRING, kMenuLog, L"Apri log");
+  AppendMenuW(menu, MF_STRING, kMenuLog, T(L"Apri log"));
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-  AppendMenuW(menu, MF_STRING, kMenuExit, L"Esci");
+  AppendMenuW(menu, MF_STRING, kMenuExit, T(L"Esci"));
 
   POINT pt;
   GetCursorPos(&pt);
@@ -393,7 +395,7 @@ void App::ToggleVisibility() {
 void App::ToggleFpsOnly() {
   cfg_.fpsOnly = !cfg_.fpsOnly;
   SaveConfig(cfg_);
-  ShowToast(cfg_.fpsOnly ? L"Modalità solo FPS" : L"Modalità completa");
+  ShowToast(cfg_.fpsOnly ? T(L"Modalità solo FPS") : T(L"Modalità completa"));
 }
 
 void App::CycleProfile() {
@@ -413,7 +415,7 @@ void App::ForceProfile(const std::string& name) {
   if (!name.empty()) cfg_.desktopProfile = name;  // anche sul desktop si vede il profilo appena scelto
   SaveConfig(cfg_);
   LogInfo("Profilo forzato: {}", name.empty() ? "(automatico)" : name);
-  ShowToast(name.empty() ? L"Profilo: automatico" : L"Profilo: " + ToWide(name));
+  ShowToast(name.empty() ? T(L"Profilo: automatico") : T(L"Profilo: ") + ToWide(name));
 }
 
 void App::ShowToast(const std::wstring& text) {

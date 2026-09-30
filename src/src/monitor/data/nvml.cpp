@@ -1,7 +1,8 @@
 #include "monitor/data/nvml.h"
 
 #include "common/log.h"
-#include "common/util.h"
+#include "common/util.h"
+#include "common/i18n.h"
 
 namespace po {
 namespace {
@@ -85,41 +86,41 @@ void NvmlReader::ReadAll(SensorList& out) {
       out.push_back({pre + key, devs_[i].name, name, unit, v, v, v});
     };
     unsigned v = 0;
-    if (temp_(h, kNvmlTemperatureGpu, &v) == kNvmlSuccess) add("temp", "Temperatura GPU", "°C", v);
+    if (temp_(h, kNvmlTemperatureGpu, &v) == kNvmlSuccess) add("temp", TU("Temperatura GPU"), "°C", v);
     unsigned fans = 0;
     if (numFans_ && fanSpeed2_ && numFans_(h, &fans) == kNvmlSuccess && fans > 0) {
       for (unsigned f = 0; f < fans && f < 8; ++f)
         if (fanSpeed2_(h, f, &v) == kNvmlSuccess)
-          add("fan" + std::to_string(f), "Ventola " + std::to_string(f + 1), "%", v);
+          add("fan" + std::to_string(f), TU("Ventola ") + std::to_string(f + 1), "%", v);
     } else if (fanSpeed_ && fanSpeed_(h, &v) == kNvmlSuccess) {
-      add("fan", "Ventola", "%", v);
+      add("fan", TU("Ventola"), "%", v);
     }
     static const std::pair<int, const char*> kClocks[] = {
-        {0, "Clock core"}, {1, "Clock SM"}, {2, "Clock memoria"}, {3, "Clock video"}};
+        {0, "Clock core"}, {1, "Clock SM"}, {2, TU("Clock memoria")}, {3, "Clock video"}};
     for (const auto& [type, name] : kClocks)
       if (clock_(h, type, &v) == kNvmlSuccess) add("clock" + std::to_string(type), name, "MHz", v);
-    if (power_ && power_(h, &v) == kNvmlSuccess) add("power", "Consumo scheda", "W", v / 1000.0);
-    if (powerLimit_ && powerLimit_(h, &v) == kNvmlSuccess) add("powerlimit", "Limite di consumo", "W", v / 1000.0);
+    if (power_ && power_(h, &v) == kNvmlSuccess) add("power", TU("Consumo scheda"), "W", v / 1000.0);
+    if (powerLimit_ && powerLimit_(h, &v) == kNvmlSuccess) add("powerlimit", TU("Limite di consumo"), "W", v / 1000.0);
     unsigned util[2] = {};
     if (util_ && util_(h, util) == kNvmlSuccess) {
-      add("util", "Utilizzo GPU", "%", util[0]);
-      add("utilmem", "Utilizzo controller memoria", "%", util[1]);
+      add("util", TU("Utilizzo GPU"), "%", util[0]);
+      add("utilmem", TU("Utilizzo controller memoria"), "%", util[1]);
     }
     unsigned long long mem[3] = {};
     if (mem_ && mem_(h, mem) == kNvmlSuccess && mem[0] > 0) {
-      add("vramused", "VRAM usata", "GB", mem[2] / 1073741824.0);
-      add("vramfree", "VRAM libera", "GB", mem[1] / 1073741824.0);
-      add("vramtotal", "VRAM totale", "GB", mem[0] / 1073741824.0);
-      add("vrampct", "VRAM usata %", "%", 100.0 * double(mem[2]) / double(mem[0]));
+      add("vramused", TU("VRAM usata"), "GB", mem[2] / 1073741824.0);
+      add("vramfree", TU("VRAM libera"), "GB", mem[1] / 1073741824.0);
+      add("vramtotal", TU("VRAM totale"), "GB", mem[0] / 1073741824.0);
+      add("vrampct", TU("VRAM usata %"), "%", 100.0 * double(mem[2]) / double(mem[0]));
     }
     int ps = 0;
     if (pstate_ && pstate_(h, &ps) == kNvmlSuccess && ps >= 0 && ps < 32) add("pstate", "P-state", "", ps);
     unsigned period = 0;
-    if (enc_ && enc_(h, &v, &period) == kNvmlSuccess) add("enc", "Utilizzo encoder video", "%", v);
-    if (dec_ && dec_(h, &v, &period) == kNvmlSuccess) add("dec", "Utilizzo decoder video", "%", v);
+    if (enc_ && enc_(h, &v, &period) == kNvmlSuccess) add("enc", TU("Utilizzo encoder video"), "%", v);
+    if (dec_ && dec_(h, &v, &period) == kNvmlSuccess) add("dec", TU("Utilizzo decoder video"), "%", v);
     // Throughput PCIe (KB/s): contatori 0 = TX, 1 = RX.
-    if (pcie_ && pcie_(h, 1, &v) == kNvmlSuccess) add("pcierx", "PCIe ricezione", "MB/s", v / 1024.0);
-    if (pcie_ && pcie_(h, 0, &v) == kNvmlSuccess) add("pcietx", "PCIe invio", "MB/s", v / 1024.0);
+    if (pcie_ && pcie_(h, 1, &v) == kNvmlSuccess) add("pcierx", TU("PCIe ricezione"), "MB/s", v / 1024.0);
+    if (pcie_ && pcie_(h, 0, &v) == kNvmlSuccess) add("pcietx", TU("PCIe invio"), "MB/s", v / 1024.0);
   }
 }
 
