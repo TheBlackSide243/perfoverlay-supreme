@@ -4,8 +4,8 @@
 IDI_APP ICON "../../assets/perfoverlay.ico"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,1,0
- PRODUCTVERSION 1,1,1,0
+ FILEVERSION PO_VERSION_MAJOR,PO_VERSION_MINOR,PO_VERSION_PATCH,0
+ PRODUCTVERSION PO_VERSION_MAJOR,PO_VERSION_MINOR,PO_VERSION_PATCH,0
  FILEOS VOS_NT_WINDOWS32
  FILETYPE VFT_APP
 BEGIN
@@ -15,8 +15,8 @@ BEGIN
     BEGIN
       VALUE "ProductName", "PerfOverlay Supreme"
       VALUE "FileDescription", "PerfOverlay Supreme - monitor prestazioni in-game"
-      VALUE "FileVersion", "1.1.1"
-      VALUE "ProductVersion", "1.1.1"
+      VALUE "FileVersion", PO_VERSION
+      VALUE "ProductVersion", PO_VERSION
     END
   END
   BLOCK "VarFileInfo"

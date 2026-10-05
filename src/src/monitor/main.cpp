@@ -16,6 +16,7 @@
 namespace po {
 int RunSettingsMain(HINSTANCE inst, int show);
 int RunOverlayTest(HINSTANCE inst, const wchar_t* cmd, int show);
+void CleanupUpdateFiles();
 }  // namespace po
 
 namespace {
@@ -56,6 +57,7 @@ int RunMonitor(HINSTANCE inst) {
 //   --test [dx11]       finestra di prova DirectX 11/12 per vedere l'overlay
 //   --monitor           overlay (usato dopo la richiesta di elevazione)
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int show) {
+  po::CleanupUpdateFiles();  // <exe>.old lasciato da un aggiornamento
   if (HasArg(cmd, L"--test")) return po::RunOverlayTest(inst, cmd, show);
   if (HasArg(cmd, L"--settings") || HasArg(cmd, L"--import-rtss")) return po::RunSettingsMain(inst, show);
   if (HasArg(cmd, L"--monitor")) return RunMonitor(inst);

@@ -8,6 +8,7 @@ inline constexpr wchar_t kAppName[] = L"PerfOverlay Supreme";
 inline constexpr wchar_t kAppTitleUpper[] = L"PERFOVERLAY SUPREME";
 inline constexpr wchar_t kAppId[] = L"PerfOverlaySupreme";     // task, classi, mutex, ETW
 inline constexpr wchar_t kAppDataDirName[] = L"PerfOverlay Supreme";
+inline constexpr char kGitHubRepo[] = "TheBlackSide243/perfoverlay-supreme";  // release per l'aggiornamento interno
 inline constexpr wchar_t kLegacyAppDataDirName[] = L"PerfOverlay";  // importata al primo avvio
 // Un solo eseguibile: overlay (senza argomenti), impostazioni (--settings), prova DirectX (--test).
 // Per rilanciarlo si usa sempre ExePath(): il file scaricato può chiamarsi diversamente (es. "... (1).exe").

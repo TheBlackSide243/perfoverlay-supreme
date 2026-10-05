@@ -10,6 +10,9 @@
 #include <format>
 #include <string>
 #include <vector>
+#include <memory>
+#include <optional>
+#include <thread>
 
 #include "common/config.h"
 #include "common/branding.h"
@@ -24,7 +27,8 @@
 #include "settings/games_editor.h"
 #include "settings/layout_editor.h"
 #include "settings/sensor_browser.h"
-#include "settings/theme.h"
+#include "settings/theme.h"
+#include "settings/updater.h"
 #include "common/i18n.h"
 
 namespace po {
@@ -77,6 +81,8 @@ enum : int {
   IDC_SENSORS,
   IDC_STORE,
   IDC_LANG,
+  IDC_UPDATE,
+  IDC_CHECKUPDATES,
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
 };
 
@@ -122,6 +128,7 @@ int IndexOf(const char* const (&arr)[N], const std::string& v) {
 // ------------------------------------------------------------------ stato
 struct State {
   HINSTANCE inst = nullptr;
+  std::optional<UpdateInfo> update;  // versione nuova trovata su GitHub
   HWND wnd = nullptr;
   HFONT font = nullptr, fontBold = nullptr, fontTitle = nullptr, fontSection = nullptr;
   HBRUSH brBg = nullptr, brPanel = nullptr, brInput = nullptr, brInputOff = nullptr;
@@ -144,6 +151,8 @@ constexpr COLORREF kInputOff = RGB(32, 32, 38);  // campo disattivato
 constexpr int kClientW = 1000, kClientH = 806;
 constexpr int kRowH = 28;
 constexpr UINT_PTR kTimerMonitor = 1;
+constexpr UINT kMsgUpdateFound = WM_APP + 20;     // lParam = UpdateInfo* (dal thread di controllo)
+constexpr UINT kMsgUpdateDownloaded = WM_APP + 21;  // wParam = riuscito, lParam = std::wstring* errore
 
 // Elementi disegnati direttamente sulla finestra (coordinate a 96 DPI).
 struct PanelItem {
@@ -379,6 +388,7 @@ void GlobalToUi() {
   SetCheck(IDC_FPSONLY, g.cfg.fpsOnly);
   SetCheck(IDC_AUTOLEARN, g.cfg.autoLearnGames);
   SetCheck(IDC_AUTOSTART, g.cfg.autostart);
+  SetCheck(IDC_CHECKUPDATES, g.cfg.checkUpdates);
   RefreshForcedCombo();
 }
 
@@ -403,6 +413,7 @@ bool UiToGlobal() {
   g.cfg.fpsOnly = GetCheck(IDC_FPSONLY);
   g.cfg.autoLearnGames = GetCheck(IDC_AUTOLEARN);
   g.cfg.autostart = GetCheck(IDC_AUTOSTART);
+  g.cfg.checkUpdates = GetCheck(IDC_CHECKUPDATES);
   Sanitize(g.cfg);
   return true;
 }
@@ -932,6 +943,7 @@ void BuildUi() {
   Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 664, grow(0) + 2, 300);
   Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), 664, grow(1) + 2, 300);
   Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), 664, grow(2) + 2, 300);
+  Check(IDC_CHECKUPDATES, T(L"Controlla aggiornamenti all'avvio"), 664, grow(3) + 2, 300);
 
   // Barra inferiore
   Button(IDC_EDIT_GAMES, T(L"Lista giochi..."), 20, 756, 176, 32);
@@ -940,6 +952,8 @@ void BuildUi() {
 
   // Intestazione: avvio dell'overlay se non è in esecuzione
   Button(IDC_LAUNCH, T(L"Avvia overlay"), 850, 26, 130, 30);
+  Button(IDC_UPDATE, L"", 600, 27, 150, 30, ui::col::Bg, true);
+  ShowWindow(Item(IDC_UPDATE), SW_HIDE);
 }
 
 // ------------------------------------------------------------------ disegno
@@ -947,6 +961,98 @@ void DrawTextAt(HDC dc, const std::wstring& t, RECT r, HFONT f, COLORREF c, UINT
   SelectObject(dc, f);
   SetTextColor(dc, c);
   DrawTextW(dc, t.c_str(), int(t.size()), &r, fmt | DT_NOPREFIX | DT_SINGLELINE);
+}
+
+std::wstring StatusPillText() { return g.monitorRunning ? T(L"Overlay in esecuzione") : T(L"Overlay non avviato"); }
+
+RECT StatusPillRect(HDC dc) {
+  const int right = g.monitorRunning ? 980 : 838;  // senza overlay a destra c'è "Avvia overlay"
+  const std::wstring state = StatusPillText();
+  HGDIOBJ old = SelectObject(dc, g.fontBold);
+  SIZE ts{};
+  GetTextExtentPoint32W(dc, state.c_str(), int(state.size()), &ts);
+  SelectObject(dc, old);
+  return {S(right) - ts.cx - S(44), S(27), S(right), S(57)};
+}
+
+// Il pulsante "Aggiorna a vX" sta subito a sinistra del badge di stato.
+void PlaceUpdateButton() {
+  HWND b = Item(IDC_UPDATE);
+  if (!g.update) {
+    ShowWindow(b, SW_HIDE);
+    return;
+  }
+  const std::wstring text = TF(L"Aggiorna a v{}", ToWide(g.update->version));
+  SetWindowTextW(b, text.c_str());
+  HDC dc = GetDC(g.wnd);
+  const RECT pill = StatusPillRect(dc);
+  HGDIOBJ old = SelectObject(dc, g.font);
+  SIZE ts{};
+  GetTextExtentPoint32W(dc, text.c_str(), int(text.size()), &ts);
+  SelectObject(dc, old);
+  ReleaseDC(g.wnd, dc);
+  const int w = ts.cx + S(32);
+  SetWindowPos(b, nullptr, pill.left - S(10) - w, pill.top, w, pill.bottom - pill.top, SWP_NOZORDER | SWP_NOACTIVATE);
+  ShowWindow(b, SW_SHOW);
+}
+
+// Controllo in background all'apertura: se c'è una versione nuova compare il pulsante.
+void StartUpdateCheck() {
+  if (!g.cfg.checkUpdates) return;
+  std::thread([wnd = g.wnd] {
+    std::wstring error;
+    auto u = CheckForUpdate(error);
+    if (!u) return;
+    auto* info = new UpdateInfo(std::move(*u));
+    if (!PostMessageW(wnd, kMsgUpdateFound, 0, reinterpret_cast<LPARAM>(info))) delete info;
+  }).detach();
+}
+
+void OnUpdateClicked() {
+  if (!g.update) return;
+  const UpdateInfo& u = *g.update;
+  std::wstring msg = TF(L"È disponibile PerfOverlay Supreme v{} (in uso: v{}).", ToWide(u.version), ToWide(AppVersion()));
+  if (!u.notes.empty()) msg += L"\n\n" + ToWide(u.notes);
+  msg += T(L"\n\nScaricarla e installarla ora? Impostazioni e overlay si riavviano da soli.");
+  if (MessageBoxW(g.wnd, msg.c_str(), kAppName, MB_YESNO | MB_ICONINFORMATION) != IDYES) return;
+  if (UiToProfile() && UiToGlobal()) SaveAll();  // le modifiche in corso non vanno perse
+  EnableWindow(Item(IDC_UPDATE), FALSE);
+  Status(TF(L"Scaricamento della versione v{}...", ToWide(u.version)), ui::col::Accent);
+  std::thread([wnd = g.wnd, u] {
+    std::wstring error;
+    const bool ok = DownloadUpdate(u, error);
+    auto* err = new std::wstring(error);
+    if (!PostMessageW(wnd, kMsgUpdateDownloaded, ok, reinterpret_cast<LPARAM>(err))) delete err;
+  }).detach();
+}
+
+// Exe scaricato e verificato: chiude l'overlay, sostituisce l'exe e riapre tutto con la nuova versione.
+void OnUpdateDownloaded(bool ok, std::wstring error) {
+  if (ok) {
+    HWND monitor = FindWindowW(kMonitorWndClass, nullptr);
+    const bool monitorWasRunning = monitor != nullptr;
+    if (monitor) {
+      PostMessageW(monitor, kMsgQuit, 0, 0);
+      for (int i = 0; i < 40 && FindWindowW(kMonitorWndClass, nullptr); ++i) Sleep(125);
+    }
+    std::wstring installError;
+    if (InstallUpdate(installError)) {
+      const auto exe = ExePath();
+      ShellExecuteW(nullptr, L"open", exe.c_str(), L"--settings", nullptr, SW_SHOWNORMAL);
+      if (monitorWasRunning) ShellExecuteW(nullptr, L"open", exe.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+      DestroyWindow(g.wnd);
+      return;
+    }
+    if (monitorWasRunning) ShellExecuteW(nullptr, L"open", ExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    ok = false;
+    error = installError;
+  }
+  EnableWindow(Item(IDC_UPDATE), TRUE);
+  Status(T(L"Aggiornamento non riuscito: ") + error, ui::col::Bad);
+  if (g.update && !g.update->pageUrl.empty() &&
+      MessageBoxW(g.wnd, (error + T(L"\n\nAprire la pagina della release?")).c_str(), kAppName,
+                  MB_YESNO | MB_ICONWARNING) == IDYES)
+    ShellExecuteW(nullptr, L"open", ToWide(g.update->pageUrl).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
 
 void Paint(HDC dc, const RECT& client) {
@@ -958,14 +1064,17 @@ void Paint(HDC dc, const RECT& client) {
   DrawTextAt(dc, kAppTitleUpper, SR({76, 14, 600, 46}), g.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
   DrawTextAt(dc, T(L"Overlay prestazioni per i giochi  ·  profili per gioco  ·  export / import"),
              SR({77, 46, 700, 68}), g.font, ui::col::Sub, DT_LEFT | DT_TOP);
+  // Versione accanto al titolo.
+  SelectObject(dc, g.fontTitle);
+  SIZE tw{};
+  GetTextExtentPoint32W(dc, kAppTitleUpper, int(wcslen(kAppTitleUpper)), &tw);
+  DrawTextAt(dc, L"v" + ToWide(AppVersion()), {S(76) + tw.cx + S(10), S(14), S(600), S(42)}, g.font, ui::col::Sub,
+             DT_LEFT | DT_BOTTOM);
+
   // Stato dell'overlay: badge arrotondato con pallino, verde se in esecuzione.
-  const int right = g.monitorRunning ? 980 : 838;
-  const std::wstring state = g.monitorRunning ? T(L"Overlay in esecuzione") : T(L"Overlay non avviato");
+  const std::wstring state = StatusPillText();
   const COLORREF stateColor = g.monitorRunning ? ui::col::Good : ui::col::Bad;
-  SelectObject(dc, g.fontBold);
-  SIZE ts{};
-  GetTextExtentPoint32W(dc, state.c_str(), int(state.size()), &ts);
-  const RECT pill{S(right) - ts.cx - S(44), S(27), S(right), S(57)};
+  const RECT pill = StatusPillRect(dc);
   ui::FillRound(dc, pill, S(15), ui::Blend(ui::col::Bg, stateColor, 0.12f), ui::Blend(ui::col::Bg, stateColor, 0.45f));
   ui::FillCircle(dc, pill.left + S(17), (pill.top + pill.bottom) / 2, S(4), stateColor, stateColor);
   DrawTextAt(dc, state, {pill.left + S(29), pill.top, pill.right - S(12), pill.bottom}, g.fontBold, stateColor,
@@ -1017,7 +1126,8 @@ void UpdateMonitorState() {
   if (running == g.monitorRunning && IsWindowVisible(Item(IDC_LAUNCH)) == !running) return;
   g.monitorRunning = running;
   ShowWindow(Item(IDC_LAUNCH), running ? SW_HIDE : SW_SHOW);
-  const RECT r = SR({560, 0, kClientW, 80});
+  PlaceUpdateButton();
+  const RECT r = SR({400, 0, kClientW, 80});
   InvalidateRect(g.wnd, &r, FALSE);
 }
 
@@ -1126,6 +1236,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (id >= IDC_COLOR_BTN && id < IDC_COLOR_BTN + kColorCount) OnPickColor(id - IDC_COLOR_BTN);
         switch (id) {
           case IDC_IMPORT_RTSS: OnImportRtss(); break;
+          case IDC_UPDATE: OnUpdateClicked(); break;
           case IDC_EDITOR:
             if (UiToProfile() && UiToGlobal()) {
               Profile& p = g.profiles[size_t(g.cur)];
@@ -1212,6 +1323,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       }
       return 0;
     }
+    case kMsgUpdateFound: {
+      std::unique_ptr<UpdateInfo> u(reinterpret_cast<UpdateInfo*>(lp));
+      g.update = std::move(*u);
+      PlaceUpdateButton();
+      Status(TF(L"È disponibile la versione v{}: premi \"Aggiorna\" in alto.", ToWide(g.update->version)),
+             ui::col::Accent);
+      return 0;
+    }
+    case kMsgUpdateDownloaded: {
+      std::unique_ptr<std::wstring> err(reinterpret_cast<std::wstring*>(lp));
+      OnUpdateDownloaded(wp != 0, *err);
+      return 0;
+    }
     case WM_DESTROY:
       EndCapture(false);  // riattiva le hotkey del monitor se si chiude durante la cattura
       PostQuitMessage(0);
@@ -1272,6 +1396,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   GlobalToUi();
   UpdateMonitorState();
   SetTimer(g.wnd, kTimerMonitor, 1500, nullptr);
+  StartUpdateCheck();
   Status(T(L"Il profilo \"default\" vale per tutti i giochi senza un profilo dedicato."));
   ShowWindow(g.wnd, show);
 

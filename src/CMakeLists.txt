@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.1.1 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.2.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -21,6 +21,9 @@ FetchContent_Declare(json
 FetchContent_MakeAvailable(json)
 
 add_compile_definitions(UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00 WINVER=0x0A00)
+# Versione dell'app (anche nelle proprietà dell'exe e per l'aggiornamento interno): si cambia solo in project().
+add_compile_definitions(PO_VERSION="${PROJECT_VERSION}" PO_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+                        PO_VERSION_MINOR=${PROJECT_VERSION_MINOR} PO_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 add_compile_options(/utf-8 /W4 /permissive- /Zc:__cplusplus /MP)
 
 # --- libreria comune: config, profili, log, percorsi ---------------------
@@ -65,12 +68,13 @@ add_executable(PerfOverlay WIN32
   src/settings/sensor_browser.cpp
   src/settings/games_editor.cpp
   src/settings/gallery.cpp
+  src/settings/updater.cpp
   tools/overlay_test.cpp
   src/common/resources.rc)
 # asInvoker: impostazioni e prova girano senza privilegi; l'overlay si rilancia da solo come amministratore
 # (serve per gli eventi ETW da cui arrivano gli FPS).
 target_link_libraries(PerfOverlay PRIVATE po_common
-  d3d11 d3d12 dxgi d2d1 dwrite dcomp d3dcompiler pdh powrprof wbemuuid oleaut32 gdi32 comctl32 comdlg32 psapi urlmon wininet winhttp)
+  d3d11 d3d12 dxgi d2d1 dwrite dcomp d3dcompiler pdh powrprof wbemuuid oleaut32 gdi32 comctl32 comdlg32 psapi urlmon wininet winhttp bcrypt)
 
 # Nomi degli eseguibili distinti da PerfOverlay: le due app possono convivere.
 set_target_properties(PerfOverlay PROPERTIES OUTPUT_NAME PerfOverlaySupreme)
