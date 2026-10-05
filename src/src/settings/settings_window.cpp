@@ -1200,7 +1200,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShellExecuteW(hwnd, L"open", AppDataDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             break;
           case IDC_LAUNCH:
-            ShellExecuteW(hwnd, L"open", (ExeDir() / kMonitorExe).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            ShellExecuteW(hwnd, L"open", ExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             SetTimer(hwnd, kTimerMonitor, 500, nullptr);  // controllo rapido subito dopo l'avvio
             break;
           case IDC_SAVE:

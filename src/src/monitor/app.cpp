@@ -165,7 +165,7 @@ void App::LoadAll() {
 
 void App::ApplyAutostart() {
   // Ricreata a ogni avvio: se la cartella di PerfOverlay è stata spostata, il percorso resta giusto.
-  const bool ok = SetAutostart(cfg_.autostart, ExeDir() / kMonitorExe);
+  const bool ok = SetAutostart(cfg_.autostart, ExePath());
   autostartApplied_ = cfg_.autostart;
   LogInfo("Avvio con Windows {}{}", cfg_.autostart ? "attivo (attività pianificata)" : "disattivato",
           ok ? "" : " - ERRORE, vedi sopra");
@@ -372,8 +372,7 @@ void App::ShowTrayMenu() {
   } else if (cmd == kMenuSettings) {
     OpenSettings();
   } else if (cmd == kMenuTest) {
-    const auto exe = ExeDir() / kMonitorExe;
-    ShellExecuteW(nullptr, L"open", exe.c_str(), L"--test", nullptr, SW_SHOWNORMAL);
+    Launch(L"--test");
   } else if (cmd == kMenuLog) {
     ShellExecuteW(nullptr, L"open", LogPath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   } else if (cmd == kMenuExit) {
@@ -424,11 +423,15 @@ void App::ShowToast(const std::wstring& text) {
   Tick();
 }
 
-void App::OpenSettings() {
-  const auto exe = ExeDir() / kMonitorExe;
-  if (reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", exe.c_str(), L"--settings", nullptr, SW_SHOWNORMAL)) <=
-      32)
-    LogWarn("Impossibile avviare {}", ToUtf8(exe.wstring()));
+void App::OpenSettings() { Launch(L"--settings"); }
+
+// Rilancia questo stesso exe (impostazioni, prova DirectX) con il nome e il percorso che ha davvero.
+void App::Launch(const wchar_t* args) {
+  const auto exe = ExePath();
+  if (reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", exe.c_str(), args, nullptr, SW_SHOWNORMAL)) <= 32) {
+    LogWarn("Impossibile avviare {} {} (errore {})", ToUtf8(exe.wstring()), ToUtf8(args), GetLastError());
+    ShowToast(T(L"Impossibile aprire la finestra: vedi il log"));
+  }
 }
 
 }  // namespace po

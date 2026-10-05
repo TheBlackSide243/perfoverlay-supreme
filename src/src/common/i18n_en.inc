@@ -259,6 +259,7 @@ constexpr WEntry kWide[] = {
     {L"Profilo", L"Profile"},
     {L"Impostazioni...", L"Settings..."},
     {L"Apri log", L"Open log"},
+    {L"Impossibile aprire la finestra: vedi il log", L"Could not open the window: see the log"},
     {L"Esci", L"Exit"},
     {L"Modalità completa", L"Full mode"},
     {L"Profilo: automatico", L"Profile: automatic"},

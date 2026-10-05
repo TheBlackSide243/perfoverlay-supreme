@@ -10,6 +10,6 @@ inline constexpr wchar_t kAppId[] = L"PerfOverlaySupreme";     // task, classi, 
 inline constexpr wchar_t kAppDataDirName[] = L"PerfOverlay Supreme";
 inline constexpr wchar_t kLegacyAppDataDirName[] = L"PerfOverlay";  // importata al primo avvio
 // Un solo eseguibile: overlay (senza argomenti), impostazioni (--settings), prova DirectX (--test).
-inline constexpr wchar_t kMonitorExe[] = L"PerfOverlaySupreme.exe";
+// Per rilanciarlo si usa sempre ExePath(): il file scaricato può chiamarsi diversamente (es. "... (1).exe").
 
 }  // namespace po

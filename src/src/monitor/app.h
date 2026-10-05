@@ -35,6 +35,7 @@ class App {
   void ForceProfile(const std::string& name);
   void ShowToast(const std::wstring& text);
   void OpenSettings();
+  void Launch(const wchar_t* args);
 
   HINSTANCE inst_ = nullptr;
   HWND wnd_ = nullptr;

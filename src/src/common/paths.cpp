@@ -62,10 +62,12 @@ fs::path PresetsDir() {
   return AppDataDir() / L"presets";
 }
 
-fs::path ExeDir() {
+fs::path ExePath() {
   wchar_t buf[MAX_PATH * 2];
   const DWORD n = GetModuleFileNameW(nullptr, buf, DWORD(std::size(buf)));
-  return fs::path(std::wstring(buf, n)).parent_path();
+  return fs::path(std::wstring(buf, n));
 }
+
+fs::path ExeDir() { return ExePath().parent_path(); }
 
 }  // namespace po
