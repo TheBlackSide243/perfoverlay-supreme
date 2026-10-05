@@ -27,6 +27,7 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
 - **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › "Lingua / Language". La prima volta segue la lingua di Windows.
+- **Aggiornamento dall'app**: quando esce una nuova versione compare il pulsante "Aggiorna a vX.Y.Z" in alto nelle impostazioni. L'exe viene scaricato da GitHub, verificato (SHA-256) e sostituito, poi impostazioni e overlay si riaprono da soli.
 
 ## Download e uso
 

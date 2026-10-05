@@ -284,6 +284,18 @@ constexpr WEntry kWide[] = {
     {L"Pacchetto scaricato ma LibreHardwareMonitor.exe non trovato.", L"Package downloaded but LibreHardwareMonitor.exe not found."},
     {L"Impossibile inizializzare {}.", L"Could not initialize {}."},
     {L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  carico {}/10  ·  VSync {}  ·  limite {}  ·  {}   [F1 DX11  F2 DX12  V  L  Su/Giù  F11  Esc]", L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  load {}/10  ·  VSync {}  ·  limit {}  ·  {}   [F1 DX11  F2 DX12  V  L  Up/Down  F11  Esc]"},
+    {L"GitHub non raggiungibile.", L"GitHub unreachable."},
+    {L"Impossibile scrivere nella cartella dell'exe (cartella protetta?): scarica la nuova versione dalla pagina della release.", L"Cannot write to the exe folder (protected folder?): download the new version from the release page."},
+    {L"Il file scaricato non corrisponde a quello della release: aggiornamento annullato.", L"The downloaded file does not match the release: update cancelled."},
+    {L"Impossibile sostituire l'exe (cartella protetta?): scarica la nuova versione dalla pagina della release.", L"Cannot replace the exe (protected folder?): download the new version from the release page."},
+    {L"Aggiorna a v{}", L"Update to v{}"},
+    {L"È disponibile PerfOverlay Supreme v{} (in uso: v{}).", L"PerfOverlay Supreme v{} is available (current: v{})."},
+    {L"\n\nScaricarla e installarla ora? Impostazioni e overlay si riavviano da soli.", L"\n\nDownload and install it now? Settings and overlay restart by themselves."},
+    {L"Scaricamento della versione v{}...", L"Downloading version v{}..."},
+    {L"Aggiornamento non riuscito: ", L"Update failed: "},
+    {L"\n\nAprire la pagina della release?", L"\n\nOpen the release page?"},
+    {L"È disponibile la versione v{}: premi \"Aggiorna\" in alto.", L"Version v{} is available: press \"Update\" at the top."},
+    {L"Controlla aggiornamenti all'avvio", L"Check for updates at startup"},
 };
 
 constexpr NEntry kNarrow[] = {

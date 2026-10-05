@@ -60,6 +60,7 @@ src/
     sensor_browser.*      browser dei sensori
     games_editor.*        lista giochi (Steam / Epic / GOG / programmi aperti)
     gallery.*             store overlay (base + GitHub)
+    updater.*             aggiornamento dall'app (release GitHub, SHA-256, sostituzione dell'exe)
     theme.*               tema scuro
 ```
 
@@ -70,6 +71,12 @@ I testi sono scritti in italiano direttamente nel codice e passano da `T()` / `T
 La lingua è `language` in `config.json` (`"it"` / `"en"`, vuota = lingua di Windows):
 - **Impostazioni**: la leggono all'avvio e si riaprono quando cambia.
 - **Overlay**: la riapplica a ogni ricaricamento della configurazione.
+
+## Versione e aggiornamenti
+
+La versione si scrive solo in `project(... VERSION x.y.z)` di `CMakeLists.txt`: arriva al codice come `PO_VERSION` e alle risorse dell'exe (FileVersion / ProductVersion).
+
+`src/settings/updater.*` legge `releases/latest` dall'API di GitHub (WinHTTP), scarica l'asset `PerfOverlaySupreme.exe` accanto all'exe (`<exe>.download`) e ne verifica il campo `digest` (SHA-256, BCrypt). Poi rinomina l'exe in uso in `<exe>.old` (un exe in esecuzione si può rinominare ma non cancellare) e mette il nuovo al suo posto. Il `.old` viene cancellato al successivo avvio. Le note mostrate nell'app sono il messaggio del tag, che il workflow usa come testo della release.
 
 ## Sorgenti dei dati
 

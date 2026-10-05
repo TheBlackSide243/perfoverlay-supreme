@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Il testo della release è il messaggio del tag annotato (lo mostra anche l'aggiornamento nell'app).
+      - name: Release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          git fetch --force --depth=1 origin "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > notes.md
+          cat notes.md
+
       - name: Configure
         run: cmake -S src -B src/build -A x64
 
@@ -33,4 +42,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: src/build/bin/Release/PerfOverlaySupreme.exe
+          body_path: notes.md
           generate_release_notes: true

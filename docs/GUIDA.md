@@ -14,6 +14,7 @@
 - [Prova dell'overlay (DirectX 11 / 12)](#prova-delloverlay-directx-11--12)
 - [Hotkey](#hotkey)
 - [Lingua](#lingua)
+- [Aggiornamenti](#aggiornamenti)
 - [Amministratore e FPS](#amministratore-e-fps)
 - [Dati e log](#dati-e-log)
 - [Limiti](#limiti)
@@ -166,6 +167,19 @@ Si cambiano da Impostazioni › "Cambia" accanto alla hotkey.
 ## Lingua
 
 Impostazioni › Impostazioni globali › **"Lingua / Language"**: Italiano o English. Le impostazioni si riaprono subito nella nuova lingua, e l'overlay (menu della tray e nomi dei sensori) si aggiorna da solo. La prima volta la lingua segue quella di Windows.
+
+## Aggiornamenti
+
+All'apertura, le impostazioni controllano su GitHub se c'è una versione più nuova (la versione in uso è scritta accanto al titolo). Se c'è, in alto compare il pulsante **"Aggiorna a vX.Y.Z"**:
+
+1. mostra le novità e chiede conferma;
+2. salva le modifiche in corso;
+3. scarica il nuovo exe e controlla che sia identico a quello della release (impronta SHA-256 pubblicata da GitHub);
+4. chiude l'overlay, mette il nuovo exe al posto di quello vecchio (stesso nome e cartella) e riapre impostazioni e overlay.
+
+Se l'exe sta in una cartella protetta (es. Programmi), la sostituzione non riesce: l'app propone di aprire la pagina della release per scaricarlo a mano. Il controllo all'avvio si disattiva con **"Controlla aggiornamenti all'avvio"** nelle impostazioni globali.
+
+L'aggiornamento dall'app c'è dalla v1.2.0: chi ha una versione precedente deve scaricare la v1.2.0 a mano una volta.
 
 ## Amministratore e FPS
 
