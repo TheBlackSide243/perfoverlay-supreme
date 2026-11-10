@@ -25,7 +25,7 @@ struct GameEntry {
 
 struct ShowFlags {
   bool fps = true, graph = true, frametime = true, percentiles = false, stutter = false;
-  bool cpu = true, gpu = true, ram = true, battery = true;
+  bool cpu = true, gpu = true, ram = true, battery = true, gpuVram = true;
 };
 
 struct ElementColors {
@@ -202,6 +202,7 @@ struct GlobalConfig {
   std::string outOfGame = "hide";     // hide | compact
   bool autostart = false;
   bool autoLearnGames = true;
+  std::string fullscreenMode = "borderless";  // exclusive | borderless | none: comportamento nel fullscreen esclusivo
   std::string forcedProfile;          // vuoto = selezione automatica
   std::string desktopProfile;         // profilo mostrato sul desktop (quello selezionato nelle impostazioni)
   bool checkUpdates = true;           // all'apertura delle impostazioni cerca una versione nuova su GitHub

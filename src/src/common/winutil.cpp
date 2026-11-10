@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <dwmapi.h>
+
 #include "common/log.h"
 #include "common/util.h"
 
@@ -169,6 +171,43 @@ void NotifyMonitorSuspendHotkeys(bool suspend) {
   // Sincrono: quando ritorna, le combinazioni sono davvero libere per la cattura.
   if (HWND h = FindWindowW(kMonitorWndClass, nullptr))
     SendMessageTimeoutW(h, kMsgSuspendHotkeys, suspend ? 1 : 0, 0, SMTO_ABORTIFHUNG, 1000, nullptr);
+}
+
+// Converte un gioco da fullscreen esclusivo a borderless rendendo la finestra top-level
+// grande quanto il monitor (senza bordi). È la tecnica usata da RTSS. Richiede privilegi.
+bool ConvertFullscreenToBorderless(HWND hwnd) {
+  if (!hwnd) return false;
+
+  // Non toccare finestre che non sono giochi (menu, launcher).
+  RECT wr;
+  if (!GetWindowRect(hwnd, &wr)) return false;
+
+  MONITORINFO mi{sizeof(mi)};
+  if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) return false;
+
+  // Salva lo stile attuale per poter tornare indietro.
+  LONG style = GetWindowLongW(hwnd, GWL_STYLE);
+  LONG exstyle = GetWindowLongW(hwnd, GWL_EXSTYLE);
+
+  // Rimuovi bordi e barra del titolo, aggiungi WS_POPUP + WS_VISIBLE.
+  LONG newStyle = (style & ~(WS_OVERLAPPEDWINDOW | WS_THICKFRAME | WS_MAXIMIZEBOX));
+  newStyle |= WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+  LONG newExStyle = (exstyle & ~WS_EX_APPWINDOW);
+  newExStyle |= WS_EX_NOREDIRECTIONBITMAP;
+
+  SetWindowLongW(hwnd, GWL_STYLE, newStyle);
+  SetWindowLongW(hwnd, GWL_EXSTYLE, newExStyle);
+
+  // Posiziona la finestra a tutto schermo.
+  SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+               mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
+               SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+
+  // Forza il ridimensionamento del device DXGI senza riavviare il gioco.
+  DwmSetWindowAttribute(hwnd, 2, &newExStyle, sizeof(newExStyle));  // DWMWA_NCRENDERING_POLICY
+
+  LogInfo("Fullscreen convertito a borderless");
+  return true;
 }
 
 }  // namespace po

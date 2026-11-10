@@ -17,7 +17,8 @@
 #include "common/util.h"
 #include "common/winutil.h"
 #include "monitor/overlay_content.h"
-#include "monitor/rtss_text.h"
+#include "monitor/rtss_text.h"
+
 #include "common/i18n.h"
 
 namespace po {
@@ -226,6 +227,18 @@ void App::Tick() {
   if (mode == Mode::None) {
     overlay_.Show(false);
     return;
+  }
+
+  // Fullscreen esclusivo: convertilo a borderless se l'utente lo ha scelto, così l'overlay è visibile.
+  if (mode == Mode::Game && fg.fullscreen && cfg_.fullscreenMode == "borderless" && fg.hwnd) {
+    static HWND convertedHwnd = nullptr;
+    if (convertedHwnd != fg.hwnd) {
+      if (ConvertFullscreenToBorderless(fg.hwnd)) convertedHwnd = fg.hwnd;
+      else convertedHwnd = nullptr;
+    }
+  } else {
+    static HWND convertedHwnd = nullptr;
+    convertedHwnd = nullptr;  // uscito dal gioco: resetta
   }
 
   // Sul desktop: il profilo selezionato nelle impostazioni (o scelto dalla tray); in gioco: automatico/forzato.
