@@ -55,7 +55,7 @@ src/
     data/                 CPU (PDH), GPU (DXGI + contatori), NVML, RAM, batteria,
                           sensori (HWiNFO shared memory, LHM WMI/HTTP), sensori di sistema, WMI
   src/settings/
-    settings_window.*     finestra principale delle impostazioni
+    settings_window.*     finestra principale delle impostazioni (ridimensionabile: Relayout() riscala i controlli dal disegno a 96 DPI)
     layout_editor.*       editor del layout libero e dei preset RTSS semplici
     sensor_browser.*      browser dei sensori
     games_editor.*        lista giochi (Steam / Epic / GOG / programmi aperti)

@@ -25,7 +25,13 @@ constexpr wchar_t kPropHover[] = L"po.hover";
 
 Gdiplus::Color Gp(COLORREF c, BYTE a = 255) { return Gdiplus::Color(a, GetRValue(c), GetGValue(c), GetBValue(c)); }
 
-float Scale(HWND h) { return GetDpiForWindow(h) / 96.0f; }
+// Scala dei controlli: quella impostata dalla finestra principale (ridimensionabile, vedi kScaleProp)
+// oppure i DPI del monitor.
+float Scale(HWND h) {
+  if (HWND root = GetAncestor(h, GA_ROOT))
+    if (const auto v = reinterpret_cast<uintptr_t>(GetPropW(root, kScaleProp))) return float(v) / 1000.0f;
+  return GetDpiForWindow(h) / 96.0f;
+}
 
 void RoundPath(Gdiplus::GraphicsPath& p, float x, float y, float w, float h, float rad) {
   const float d = std::min(rad * 2, std::min(w, h));

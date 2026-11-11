@@ -24,6 +24,7 @@
 Tutto è in un solo file, `PerfOverlaySupreme.exe`: overlay, impostazioni, editor, store e finestra di prova.
 
 - **Doppio clic**: avvia l'overlay. Chiede l'amministratore, che serve per gli FPS. Se l'overlay è già attivo, apre le **impostazioni**.
+- **Finestra delle impostazioni**: si può ridimensionare e massimizzare, e tutto il contenuto scala con lei. All'apertura si adatta allo schermo (più piccola sui monitor bassi) e resta nitida anche spostandola su un monitor con scala diversa.
 - **Icona vicino all'orologio, tasto destro**: mostra/nascondi, solo FPS, profilo, Impostazioni, Test overlay (DirectX 11/12), log, esci.
 - **Riga di comando**:
 

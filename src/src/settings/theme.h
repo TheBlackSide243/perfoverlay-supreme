@@ -23,6 +23,8 @@ constexpr COLORREF Bad = RGB(240, 96, 80);
 }  // namespace col
 
 inline constexpr wchar_t kCheckClass[] = L"POCheck";
+// Proprietà della finestra principale: scala dei controlli × 1000 (1000 = 96 DPI). Se manca si usano i DPI.
+inline constexpr wchar_t kScaleProp[] = L"po.scale";
 
 void Init(HINSTANCE inst);  // GDI+ e classi finestra
 void Shutdown();

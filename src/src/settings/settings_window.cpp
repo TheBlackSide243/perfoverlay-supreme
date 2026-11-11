@@ -132,9 +132,13 @@ struct State {
   std::optional<UpdateInfo> update;  // versione nuova trovata su GitHub
   HWND wnd = nullptr;
   HFONT font = nullptr, fontBold = nullptr, fontTitle = nullptr, fontSection = nullptr;
+  HFONT fontDlg = nullptr;  // per le finestre secondarie, che hanno dimensioni fisse ai DPI di sistema
   HBRUSH brBg = nullptr, brPanel = nullptr, brInput = nullptr, brInputOff = nullptr;
   HICON icon = nullptr;
-  int dpi = 96;
+  int dpi = 96;      // scala effettiva dell'interfaccia (DPI del monitor × ingrandimento della finestra)
+  int baseDpi = 96;  // DPI del monitor su cui si trova la finestra
+  int ox = 0, oy = 0;  // margine per centrare il contenuto quando la finestra ha proporzioni diverse
+  std::vector<std::pair<HWND, RECT>> layout;  // controlli e posizione a 96 DPI, per ridisporli
   GlobalConfig cfg;
   GameList games;
   std::vector<Profile> profiles;
@@ -174,13 +178,19 @@ std::vector<FrameItem> g_frames;
 
 int S(int v) { return MulDiv(v, g.dpi, 96); }
 RECT SR(const RECT& r) { return {S(r.left), S(r.top), S(r.right), S(r.bottom)}; }
+// Rettangolo di disegno → coordinate della finestra (il disegno è spostato di ox/oy per centrare).
+RECT ToClient(RECT r) {
+  OffsetRect(&r, g.ox, g.oy);
+  return r;
+}
 HWND Item(int id) { return GetDlgItem(g.wnd, id); }
 
 // ------------------------------------------------------------------ helper controlli
 HWND Make(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, int w, int h, int id, DWORD ex = 0) {
-  HWND c = CreateWindowExW(ex, cls, text, WS_CHILD | WS_VISIBLE | style, S(x), S(y), S(w), S(h), g.wnd,
+  HWND c = CreateWindowExW(ex, cls, text, WS_CHILD | WS_VISIBLE | style, g.ox + S(x), g.oy + S(y), S(w), S(h), g.wnd,
                            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), g.inst, nullptr);
   SendMessageW(c, WM_SETFONT, reinterpret_cast<WPARAM>(g.font), TRUE);
+  g.layout.push_back({c, {x, y, x + w, y + h}});
   return c;
 }
 void Panel(const wchar_t* title, int x, int y, int w, int h) { g_panels.push_back({{x, y, x + w, y + h}, title}); }
@@ -236,7 +246,7 @@ RECT StatusRect() { return SR({386, 756, 814, 788}); }
 void Status(const std::wstring& s, COLORREF color = ui::col::Sub) {
   g.status = s;
   g.statusColor = color;
-  const RECT r = StatusRect();
+  const RECT r = ToClient(StatusRect());
   InvalidateRect(g.wnd, &r, FALSE);
 }
 
@@ -245,7 +255,7 @@ void EnableField(int id, bool on) {
   EnableWindow(Item(id), on);
   for (const auto& f : g_frames)
     if (f.id == id) {
-      RECT r = SR(f.r);
+      RECT r = ToClient(SR(f.r));
       InvalidateRect(g.wnd, &r, FALSE);
     }
 }
@@ -690,7 +700,7 @@ int HotkeyIndex(int editId) {
 void InvalidateFrame(int id) {
   for (const auto& f : g_frames)
     if (f.id == id) {
-      RECT r = SR(f.r);
+      RECT r = ToClient(SR(f.r));
       InvalidateRect(g.wnd, &r, FALSE);
     }
 }
@@ -996,7 +1006,8 @@ void PlaceUpdateButton() {
   SelectObject(dc, old);
   ReleaseDC(g.wnd, dc);
   const int w = ts.cx + S(32);
-  SetWindowPos(b, nullptr, pill.left - S(10) - w, pill.top, w, pill.bottom - pill.top, SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(b, nullptr, g.ox + pill.left - S(10) - w, g.oy + pill.top, w, pill.bottom - pill.top,
+               SWP_NOZORDER | SWP_NOACTIVATE);
   ShowWindow(b, SW_SHOW);
 }
 
@@ -1062,6 +1073,7 @@ void OnUpdateDownloaded(bool ok, std::wstring error) {
 void Paint(HDC dc, const RECT& client) {
   FillRect(dc, &client, g.brBg);
   SetBkMode(dc, TRANSPARENT);
+  SetViewportOrgEx(dc, g.ox, g.oy, nullptr);  // contenuto centrato nella finestra
 
   // Intestazione (come Decky Manager e SteamImporter): icona, titolo d'accento, sottotitolo.
   DrawIconEx(dc, S(20), S(18), g.icon, S(44), S(44), 0, nullptr, DI_NORMAL);
@@ -1097,6 +1109,7 @@ void Paint(HDC dc, const RECT& client) {
     ui::FillRound(dc, SR(f.r), S(6), on ? ui::col::Input : kInputOff, on ? border : RGB(44, 44, 52));
   }
   DrawTextAt(dc, g.status, StatusRect(), g.font, g.statusColor, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
+  SetViewportOrgEx(dc, 0, 0, nullptr);  // la copia del buffer sullo schermo usa coordinate della finestra
 }
 
 void DrawProfileItem(const DRAWITEMSTRUCT* d) {
@@ -1131,12 +1144,31 @@ void UpdateMonitorState() {
   g.monitorRunning = running;
   ShowWindow(Item(IDC_LAUNCH), running ? SW_HIDE : SW_SHOW);
   PlaceUpdateButton();
-  const RECT r = SR({400, 0, kClientW, 80});
+  const RECT r = ToClient(SR({400, 0, kClientW, 80}));
   InvalidateRect(g.wnd, &r, FALSE);
 }
 
+void Relayout(int clientW, int clientH);
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
+    case WM_SIZE:
+      if (wp != SIZE_MINIMIZED && g.wnd) Relayout(LOWORD(lp), HIWORD(lp));
+      return 0;
+    case WM_GETMINMAXINFO: {  // non più piccola del 60% (il testo resta leggibile)
+      RECT r{0, 0, MulDiv(kClientW, g.baseDpi * 6, 960), MulDiv(kClientH, g.baseDpi * 6, 960)};
+      AdjustWindowRectExForDpi(&r, DWORD(GetWindowLongW(hwnd, GWL_STYLE)), FALSE, 0, UINT(g.baseDpi));
+      auto* mm = reinterpret_cast<MINMAXINFO*>(lp);
+      mm->ptMinTrackSize = {r.right - r.left, r.bottom - r.top};
+      return 0;
+    }
+    case WM_DPICHANGED: {  // finestra spostata su un monitor con DPI diversi
+      g.baseDpi = HIWORD(wp);
+      const auto* r = reinterpret_cast<const RECT*>(lp);
+      SetWindowPos(hwnd, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
+                   SWP_NOZORDER | SWP_NOACTIVATE);
+      return 0;
+    }
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC dc = BeginPaint(hwnd, &ps);
@@ -1215,7 +1247,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g.focusedEdit = code == EN_SETFOCUS ? id : 0;
         for (const auto& f : g_frames)
           if (f.id == id) {
-            RECT r = SR(f.r);
+            RECT r = ToClient(SR(f.r));
             InvalidateRect(hwnd, &r, FALSE);
           }
         return 0;
@@ -1252,7 +1284,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                             kAppName, MB_ICONINFORMATION);
                 break;
               }
-              if (RunLayoutEditor(g.wnd, g.inst, g.font, p)) {  // imposta da solo il layout (libero o RTSS)
+              if (RunLayoutEditor(g.wnd, g.inst, g.fontDlg, p)) {  // imposta da solo il layout (libero o RTSS)
                 ProfileToUi();
                 OfferUseEverywhere(p);
                 SaveAll();
@@ -1265,7 +1297,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
           case IDC_STORE:
             if (UiToProfile() && UiToGlobal()) {
               Profile& p = g.profiles[size_t(g.cur)];
-              if (RunGallery(g.wnd, g.inst, g.font, p)) {
+              if (RunGallery(g.wnd, g.inst, g.fontDlg, p)) {
                 ProfileToUi();
                 OfferUseEverywhere(p);
                 SaveAll();
@@ -1276,7 +1308,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
           case IDC_SENSORS:
             if (UiToProfile() && UiToGlobal()) {
               Profile& p = g.profiles[size_t(g.cur)];
-              if (RunSensorBrowser(g.wnd, g.inst, g.font, p)) {
+              if (RunSensorBrowser(g.wnd, g.inst, g.fontDlg, p)) {
                 Sanitize(p);
                 OfferUseEverywhere(p);
                 SaveAll();
@@ -1302,7 +1334,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
           case IDC_RESTORE_CFG: Import(true); break;
           case IDC_EDIT_GAMES:
             g.games = LoadGames();  // include quelli appresi dall'overlay nel frattempo
-            if (RunGamesEditor(hwnd, g.inst, g.font, g.games)) {
+            if (RunGamesEditor(hwnd, g.inst, g.fontDlg, g.games)) {
               const bool saved = SaveGames(g.games);
               NotifyMonitorReload();
               Status(saved ? TF(L"Lista giochi salvata: {} giochi, {} esclusi.",
@@ -1353,11 +1385,65 @@ HFONT MakeFont(int tenthsOfPoint, int weight) {
                      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 }
 
+// La finestra si può ridimensionare e ingrandire: tutto (controlli, testo, pannelli) scala con lei
+// in proporzione al disegno originale da 1000x806 a 96 DPI, centrato se le proporzioni sono diverse.
+void Relayout(int clientW, int clientH) {
+  if (clientW <= 0 || clientH <= 0) return;
+  const double zoom = std::min(double(clientW) / MulDiv(kClientW, g.baseDpi, 96),
+                               double(clientH) / MulDiv(kClientH, g.baseDpi, 96));
+  const int dpi = std::max(48, int(std::lround(g.baseDpi * zoom)));
+  const bool rescale = dpi != g.dpi || !g.font;
+  g.dpi = dpi;
+  g.ox = std::max(0, (clientW - S(kClientW)) / 2);
+  g.oy = std::max(0, (clientH - S(kClientH)) / 2);
+  SetPropW(g.wnd, ui::kScaleProp, reinterpret_cast<HANDLE>(static_cast<uintptr_t>(MulDiv(1000, g.dpi, 96))));
+
+  if (rescale) {
+    const HFONT old[] = {g.font, g.fontBold, g.fontTitle, g.fontSection};
+    g.font = MakeFont(95, FW_NORMAL);
+    g.fontBold = MakeFont(95, FW_SEMIBOLD);
+    g.fontTitle = MakeFont(160, FW_BOLD);
+    g.fontSection = MakeFont(80, FW_BOLD);
+    for (const auto& [c, r] : g.layout) SendMessageW(c, WM_SETFONT, reinterpret_cast<WPARAM>(g.font), FALSE);
+    for (HFONT f : old)
+      if (f) DeleteObject(f);
+    if (g.icon) DestroyIcon(g.icon);
+    g.icon = static_cast<HICON>(LoadImageW(g.inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, S(44), S(44), 0));
+  }
+
+  HDWP dwp = BeginDeferWindowPos(int(g.layout.size()));
+  for (const auto& [c, r] : g.layout)
+    if (dwp)
+      dwp = DeferWindowPos(dwp, c, nullptr, g.ox + S(r.left), g.oy + S(r.top), S(r.right - r.left),
+                           S(r.bottom - r.top), SWP_NOZORDER | SWP_NOACTIVATE);
+  if (dwp) EndDeferWindowPos(dwp);
+
+  if (rescale) {
+    for (const auto& [c, r] : g.layout) {
+      wchar_t cls[32];
+      if (!GetClassNameW(c, cls, 32) || _wcsicmp(cls, L"ComboBox") != 0) continue;
+      SendMessageW(c, CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
+      SendMessageW(c, CB_SETITEMHEIGHT, 0, S(22));
+    }
+    if (HWND list = Item(IDC_LIST)) SendMessageW(list, LB_SETITEMHEIGHT, 0, S(32));
+  }
+  // Le combobox modificabili (font) selezionano il testo quando cambiano dimensione: lo deselezioniamo.
+  const HWND focus = GetFocus();
+  for (const auto& [c, r] : g.layout) {
+    wchar_t cls[32];
+    if ((GetWindowLongW(c, GWL_STYLE) & 0x3) == CBS_DROPDOWN && GetClassNameW(c, cls, 32) &&
+        _wcsicmp(cls, L"ComboBox") == 0 && !IsChild(c, focus))
+      SendMessageW(c, CB_SETEDITSEL, 0, MAKELPARAM(-1, 0));
+  }
+  PlaceUpdateButton();
+  RedrawWindow(g.wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+}
+
 }  // namespace
 
 int RunSettingsWindow(HINSTANCE inst, int show) {
   g.inst = inst;
-  g.dpi = int(GetDpiForSystem());
+  g.dpi = g.baseDpi = int(GetDpiForSystem());
   g.cfg = LoadConfig();
   g.games = LoadGames();
   g.profiles = LoadProfiles();
@@ -1369,6 +1455,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   g.fontBold = MakeFont(95, FW_SEMIBOLD);
   g.fontTitle = MakeFont(160, FW_BOLD);
   g.fontSection = MakeFont(80, FW_BOLD);
+  g.fontDlg = MakeFont(95, FW_NORMAL);
   g.brBg = CreateSolidBrush(ui::col::Bg);
   g.brPanel = CreateSolidBrush(ui::col::Panel);
   g.brInput = CreateSolidBrush(ui::col::Input);
@@ -1386,13 +1473,33 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   wc.lpszClassName = L"PerfOverlaySupremeSettings";
   RegisterClassExW(&wc);
 
-  constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
-  RECT r{0, 0, S(kClientW), S(kClientH)};
-  AdjustWindowRect(&r, style, FALSE);
+  // Finestra ridimensionabile e nitida su ogni monitor (DPI per monitor); le finestre secondarie
+  // restano come prima, a dimensione fissa.
+  constexpr DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+  const DPI_AWARENESS_CONTEXT prevDpi = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   g.wnd = CreateWindowExW(0, wc.lpszClassName, T(L"PerfOverlay Supreme - Impostazioni"), style, CW_USEDEFAULT, CW_USEDEFAULT,
-                          r.right - r.left, r.bottom - r.top, nullptr, nullptr, inst, nullptr);
+                          S(kClientW), S(kClientH), nullptr, nullptr, inst, nullptr);
+  if (prevDpi) SetThreadDpiAwarenessContext(prevDpi);
   if (!g.wnd) return 1;
   ApplyDarkTitleBar(g.wnd, ui::col::Bg);
+
+  // Dimensione iniziale: quella del disegno ai DPI del monitor, ridotta se lo schermo è più piccolo
+  // (es. portatili 1366x768 o scala 150% su 1080p), centrata nell'area di lavoro.
+  g.baseDpi = int(GetDpiForWindow(g.wnd));
+  MONITORINFO mi{sizeof(mi)};
+  GetMonitorInfoW(MonitorFromWindow(g.wnd, MONITOR_DEFAULTTONEAREST), &mi);
+  RECT frame{0, 0, 0, 0};
+  AdjustWindowRectExForDpi(&frame, style, FALSE, 0, UINT(g.baseDpi));
+  const int frameW = frame.right - frame.left, frameH = frame.bottom - frame.top;
+  const int workW = mi.rcWork.right - mi.rcWork.left, workH = mi.rcWork.bottom - mi.rcWork.top;
+  const int designW = MulDiv(kClientW, g.baseDpi, 96), designH = MulDiv(kClientH, g.baseDpi, 96);
+  const double fit = std::min({1.0, (workW * 0.96 - frameW) / designW, (workH * 0.96 - frameH) / designH});
+  const int winW = int(designW * fit) + frameW, winH = int(designH * fit) + frameH;
+  SetWindowPos(g.wnd, nullptr, mi.rcWork.left + (workW - winW) / 2, mi.rcWork.top + (workH - winH) / 2, winW, winH,
+               SWP_NOZORDER | SWP_NOACTIVATE);
+  RECT client;
+  GetClientRect(g.wnd, &client);
+  Relayout(client.right, client.bottom);
 
   BuildUi();
   RefreshList();
@@ -1410,7 +1517,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }
-  for (HGDIOBJ o : std::initializer_list<HGDIOBJ>{g.font, g.fontBold, g.fontTitle, g.fontSection, g.brBg, g.brPanel,
+  for (HGDIOBJ o : std::initializer_list<HGDIOBJ>{g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontDlg, g.brBg, g.brPanel,
                                                   g.brInput, g.brInputOff})
     DeleteObject(o);
   if (g.icon) DestroyIcon(g.icon);
