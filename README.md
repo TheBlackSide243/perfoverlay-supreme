@@ -1,10 +1,27 @@
 # PerfOverlay Supreme
 
+[![Release](https://img.shields.io/github/v/release/TheBlackSide243/perfoverlay-supreme?label=versione)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)
+[![Download](https://img.shields.io/github/downloads/TheBlackSide243/perfoverlay-supreme/total?label=download)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/TheBlackSide243/perfoverlay-supreme/build.yml?branch=main&label=build)](https://github.com/TheBlackSide243/perfoverlay-supreme/actions/workflows/build.yml)
+[![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)](#download-e-uso)
+[![Licenza MIT](https://img.shields.io/github/license/TheBlackSide243/perfoverlay-supreme?label=licenza)](LICENSE)
+
 🇮🇹 **Italiano** · 🇬🇧 [English](README.en.md)
 
 **Overlay delle prestazioni in-game per Windows 10/11**: FPS con mini-grafico, frame time, 1% low, CPU, GPU, RAM, temperature e qualsiasi sensore di sistema, sopra al gioco. Parte con uno stile simile a quello di Steam; poi puoi modificarlo in un editor in stile RivaTuner oppure usare direttamente i preset dell'OverlayEditor di RTSS, compresi quelli avanzati come *TroyMetrics Benchmark Overlays*.
 
 Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare nulla nei giochi**.
+
+**[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
+
+![Overlay sopra la scena di prova integrata](docs/images/overlay.png)
+
+<details>
+<summary>Impostazioni</summary>
+
+![Finestra delle impostazioni](docs/images/settings.png)
+
+</details>
 
 ## Funzioni
 
@@ -24,7 +41,9 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 - **Store overlay**: sei overlay base più gli overlay RTSS pubblicati su GitHub dai loro autori (scaricati dai repository originali), con ricerca integrata.
 - **Sensori di sistema**:
   - integrati: CPU per core, GPU NVIDIA completa via NVML, dischi con temperatura SSD, rete, batteria;
+  - VRAM della scheda e VRAM occupata dal solo gioco;
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
+- **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
 - **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › "Lingua / Language". La prima volta segue la lingua di Windows.
 - **Aggiornamento dall'app**: quando esce una nuova versione compare il pulsante "Aggiorna a vX.Y.Z" in alto nelle impostazioni. L'exe viene scaricato da GitHub, verificato (SHA-256) e sostituito, poi impostazioni e overlay si riaprono da soli.
@@ -40,6 +59,15 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 | Ctrl+Shift+O | mostra / nascondi |
 | Ctrl+Shift+P | cambia profilo |
 | Ctrl+Shift+F | solo FPS |
+
+Le hotkey si cambiano nelle impostazioni.
+
+| Riga di comando | Effetto |
+|---|---|
+| *(nessun argomento)* | avvia l'overlay, oppure apre le impostazioni se è già attivo |
+| `--settings` | impostazioni |
+| `--test [dx11]` | scena di prova DirectX 12 (o 11) |
+| `--import-rtss "file.ovx" [profilo]` | importa un preset RTSS |
 
 La guida completa è in [docs/GUIDA.md](docs/GUIDA.md).
 

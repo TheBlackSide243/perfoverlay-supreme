@@ -1,10 +1,27 @@
 # PerfOverlay Supreme
 
+[![Release](https://img.shields.io/github/v/release/TheBlackSide243/perfoverlay-supreme)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/TheBlackSide243/perfoverlay-supreme/total)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/TheBlackSide243/perfoverlay-supreme/build.yml?branch=main&label=build)](https://github.com/TheBlackSide243/perfoverlay-supreme/actions/workflows/build.yml)
+[![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)](#download-and-usage)
+[![MIT license](https://img.shields.io/github/license/TheBlackSide243/perfoverlay-supreme)](LICENSE)
+
 🇮🇹 [Italiano](README.md) · 🇬🇧 **English**
 
 **In-game performance overlay for Windows 10/11.** It shows FPS with a mini graph, frame time, 1% lows, CPU, GPU, RAM, temperatures and any system sensor on top of your game. It starts with a Steam-like style, which you can reshape in a RivaTuner-style editor. It can also use RTSS OverlayEditor presets directly, including advanced ones such as *TroyMetrics Benchmark Overlays*.
 
 It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **nothing is injected into games**.
+
+**[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
+
+![Overlay on top of the built-in test scene](docs/images/overlay.png)
+
+<details>
+<summary>Settings</summary>
+
+![Settings window (Italian UI; English is available)](docs/images/settings.png)
+
+</details>
 
 ## Features
 
@@ -30,7 +47,9 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - built-in GitHub search.
 - **System sensors:**
   - built in: CPU per core, full NVIDIA GPU data via NVML, disks (including SSD temperature), network and battery;
+  - card VRAM and the VRAM used by the game alone;
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
+- **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
 - **English or Italian UI**: pick it in Settings › "Lingua / Language". The first time it follows the Windows language.
 - **In-app updates**: when a new version is out, an "Update to vX.Y.Z" button appears at the top of the settings. The exe is downloaded from GitHub, verified (SHA-256) and replaced, then settings and overlay reopen by themselves.
@@ -46,6 +65,8 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 | Ctrl+Shift+O | show / hide |
 | Ctrl+Shift+P | cycle profiles |
 | Ctrl+Shift+F | FPS only |
+
+Hotkeys can be changed in the settings.
 
 | Command line | Effect |
 |---|---|
