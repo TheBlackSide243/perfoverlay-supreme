@@ -14,14 +14,13 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 
 **[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-![Overlay sopra la scena di prova integrata](docs/images/overlay.png)
-
-<details>
-<summary>Impostazioni</summary>
+**Impostazioni**: profili, layout, elementi visibili, colori, hotkey e lingua in un'unica finestra, ridimensionabile.
 
 ![Finestra delle impostazioni](docs/images/settings.png)
 
-</details>
+**Overlay** sopra la scena di prova integrata:
+
+![Overlay sopra la scena di prova integrata](docs/images/overlay.png)
 
 ## Funzioni
 

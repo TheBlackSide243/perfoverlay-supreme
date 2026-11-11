@@ -14,14 +14,13 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 
 **[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
+**Settings**: profiles, layout, visible items, colors, hotkeys and language in a single resizable window (Italian UI shown; English is available).
+
+![Settings window](docs/images/settings.png)
+
+**Overlay** on top of the built-in test scene:
+
 ![Overlay on top of the built-in test scene](docs/images/overlay.png)
-
-<details>
-<summary>Settings</summary>
-
-![Settings window (Italian UI; English is available)](docs/images/settings.png)
-
-</details>
 
 ## Features
 
