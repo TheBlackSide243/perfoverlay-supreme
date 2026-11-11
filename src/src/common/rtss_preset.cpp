@@ -150,6 +150,7 @@ std::string RtssMetricForSource(const std::string& name, const std::string& id, 
   if (has("remaining time") || has("time remaining")) return "bat.remain_min";
   const bool gpu = has("gpu");
   const bool cpu = has("cpu");
+  if (gpu && has("memory usage") && has("process")) return "gpu.vram_game_mb";
   if (gpu && has("memory usage percent")) return "gpu.vram_pct";
   if (gpu && has("memory usage")) return "gpu.vram_mb";
   if (gpu && has("temperature")) return "gpu.temp";

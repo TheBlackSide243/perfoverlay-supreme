@@ -84,7 +84,7 @@ PerfOverlay Supreme does not inject DLLs, does not read or write game memory, an
 
 ## Known limitations
 
-- The overlay is not visible in *exclusive* fullscreen. Use "borderless window" mode.
+- The overlay is not visible in *exclusive* fullscreen. Use "borderless window" mode (the app warns you with a notification).
 - Reflex/PresentMon latency values in RTSS presets show N/A.
 - CPU temperature needs HWiNFO or LibreHardwareMonitor, because Windows does not expose it without a driver.
 - Full GPU data is only available on NVIDIA (through NVML). AMD and Intel GPUs need HWiNFO or LibreHardwareMonitor.

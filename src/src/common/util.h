@@ -8,6 +8,9 @@ namespace po {
 std::string ToUtf8(std::wstring_view w);
 std::wstring ToWide(std::string_view s);
 std::string Trim(std::string_view s);
+// Titolo di una finestra senza caratteri invisibili (spazi a larghezza zero, marcatori di direzione):
+// alcuni giochi (es. Call of Duty) li inseriscono tra le lettere e rompono log e riconoscimento per titolo.
+std::wstring CleanTitle(std::wstring_view w);
 std::vector<std::string> Split(std::string_view s, char sep);
 
 inline std::string ToLowerAscii(std::string s) {

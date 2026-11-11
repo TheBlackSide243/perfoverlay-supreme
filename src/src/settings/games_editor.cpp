@@ -233,7 +233,7 @@ std::vector<Candidate> RunningPrograms() {
         if (lower.rfind(WindowsDirLower(), 0) == 0) return TRUE;  // componenti di Windows
         const std::string exe = lower.substr(lower.find_last_of('\\') + 1);
         if (!c->seen->insert(exe).second) return TRUE;
-        c->out->push_back({exe, title, T(L"Aperto ora"), path});
+        c->out->push_back({exe, CleanTitle(title), T(L"Aperto ora"), path});
         return TRUE;
       },
       reinterpret_cast<LPARAM>(&ctx));

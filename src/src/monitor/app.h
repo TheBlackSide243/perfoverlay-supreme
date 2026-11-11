@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,8 @@ class App {
   void CycleProfile();
   void ForceProfile(const std::string& name);
   void ShowToast(const std::wstring& text);
+  void CheckExclusiveFullscreen(const ForegroundInfo& fg);
+  void ShowTrayBalloon(const std::wstring& title, const std::wstring& text);
   void OpenSettings();
   void Launch(const wchar_t* args);
 
@@ -60,6 +63,7 @@ class App {
   std::wstring toast_;
   ULONGLONG toastUntil_ = 0;
   DWORD lastGamePid_ = 0;
+  std::set<std::string> fullscreenHinted_;  // giochi già avvisati del fullscreen esclusivo (per sessione)
   std::string lastProfile_;
 };
 

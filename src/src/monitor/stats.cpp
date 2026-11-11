@@ -6,7 +6,6 @@
 
 #include "common/log.h"
 #include "monitor/data/nvml.h"
-#include "monitor/data/adtreport.h"
 #include "monitor/data/sensors.h"
 #include "monitor/data/system_sensors.h"
 #include "monitor/data/wmi.h"
@@ -47,8 +46,6 @@ void StatsCollector::Loop() {
   {
     CpuMonitor cpu;
     cpu.Init();
-    AdtReport adt;  // temperatura CPU senza HWiNFO (AMD/Intel moderni)
-    adt.Init();
     GpuMonitor gpu;
     gpu.Init();
     SensorHub sensors;
@@ -87,14 +84,10 @@ void StatsCollector::Loop() {
         }
       }
       s.cpuTempC = readings.cpuTempC;
-      if (!s.cpuTempC) adt.Read(s.cpuTempC, s.cpuPowerW);  // ADTReport come fallback
       s.cpuPowerW = readings.cpuPowerW;
       s.sensorSource = readings.source;
 
       s.gpu = gpu.Sample(gamePid_, watchPid_, &s.foreground);
-      // VRAM del solo processo del gioco (non della scheda): il campione foreground è della finestra attuale.
-      if (s.foreground.pid == gamePid_ && gamePid_ && s.foreground.vramMB > 0)
-        s.gpu.foregroundVramGB = s.foreground.vramMB / (1024.0 * 1024.0);
       if (const auto* g = MatchGpu(readings, s.gpu.name)) {
         s.gpu.tempC = g->tempC;
         s.gpu.clockMHz = g->clockMHz;

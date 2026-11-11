@@ -18,7 +18,6 @@
 #include "common/winutil.h"
 #include "monitor/overlay_content.h"
 #include "monitor/rtss_text.h"
-
 #include "common/i18n.h"
 
 namespace po {
@@ -229,17 +228,7 @@ void App::Tick() {
     return;
   }
 
-  // Fullscreen esclusivo: convertilo a borderless se l'utente lo ha scelto, così l'overlay è visibile.
-  if (mode == Mode::Game && fg.fullscreen && cfg_.fullscreenMode == "borderless" && fg.hwnd) {
-    static HWND convertedHwnd = nullptr;
-    if (convertedHwnd != fg.hwnd) {
-      if (ConvertFullscreenToBorderless(fg.hwnd)) convertedHwnd = fg.hwnd;
-      else convertedHwnd = nullptr;
-    }
-  } else {
-    static HWND convertedHwnd = nullptr;
-    convertedHwnd = nullptr;  // uscito dal gioco: resetta
-  }
+  if (mode == Mode::Game) CheckExclusiveFullscreen(fg);
 
   // Sul desktop: il profilo selezionato nelle impostazioni (o scelto dalla tray); in gioco: automatico/forzato.
   const Profile* desktop = isGame ? nullptr : FindProfile(profiles_, cfg_.desktopProfile);
@@ -434,6 +423,33 @@ void App::ShowToast(const std::wstring& text) {
   toast_ = text;
   toastUntil_ = GetTickCount64() + kToastMs;
   Tick();
+}
+
+// L'overlay è una finestra a parte: sopra un gioco in fullscreen esclusivo (D3D) Windows non la
+// compone. Non tocchiamo la finestra del gioco (cambiarne lo stile da fuori può farlo crashare o
+// lasciarlo a una risoluzione sbagliata): avvisiamo una volta per gioco di usare il borderless.
+void App::CheckExclusiveFullscreen(const ForegroundInfo& fg) {
+  if (!cfg_.fullscreenHint || !fg.valid || !fg.fullscreen) return;
+  QUERY_USER_NOTIFICATION_STATE state{};
+  if (FAILED(SHQueryUserNotificationState(&state)) || state != QUNS_RUNNING_D3D_FULL_SCREEN) return;
+  const std::string key = ToLowerAscii(fg.exe.empty() ? std::to_string(fg.pid) : fg.exe);
+  if (!fullscreenHinted_.insert(key).second) return;
+  LogInfo("{} usa il fullscreen esclusivo: l'overlay potrebbe non essere visibile", fg.exe.empty() ? "?" : fg.exe);
+  ShowTrayBalloon(T(L"Fullscreen esclusivo"),
+                  (fg.exe.empty() ? std::wstring(T(L"Il gioco")) : ToWide(fg.exe)) +
+                      T(L" usa il fullscreen esclusivo: l'overlay potrebbe non comparire. Nelle opzioni video del "
+                        L"gioco scegli \"Finestra senza bordi\" (borderless)."));
+}
+
+void App::ShowTrayBalloon(const std::wstring& title, const std::wstring& text) {
+  NOTIFYICONDATAW nid{sizeof(nid)};
+  nid.hWnd = wnd_;
+  nid.uID = 1;
+  nid.uFlags = NIF_INFO;
+  nid.dwInfoFlags = NIIF_INFO | NIIF_RESPECT_QUIET_TIME;
+  wcsncpy_s(nid.szInfoTitle, title.c_str(), _TRUNCATE);
+  wcsncpy_s(nid.szInfo, text.c_str(), _TRUNCATE);
+  Shell_NotifyIconW(NIM_MODIFY, &nid);
 }
 
 void App::OpenSettings() { Launch(L"--settings"); }

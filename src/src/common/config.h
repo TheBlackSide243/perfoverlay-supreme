@@ -25,7 +25,7 @@ struct GameEntry {
 
 struct ShowFlags {
   bool fps = true, graph = true, frametime = true, percentiles = false, stutter = false;
-  bool cpu = true, gpu = true, ram = true, battery = true, gpuVram = true;
+  bool cpu = true, gpu = true, ram = true, battery = true;
 };
 
 struct ElementColors {
@@ -89,6 +89,7 @@ inline constexpr LayoutField kLayoutFields[] = {
     {"gpu", "temp", L"Temperatura", true},
     {"gpu", "clock", L"Frequenza", true},
     {"gpu", "vram", L"VRAM usata / totale", true},
+    {"gpu", "vramgame", L"VRAM del gioco", false},
     {"ram", "used", L"Usata / totale", true},
     {"ram", "speed", L"Velocità", true},
     {"battery", "percent", L"Percentuale", true},
@@ -202,7 +203,7 @@ struct GlobalConfig {
   std::string outOfGame = "hide";     // hide | compact
   bool autostart = false;
   bool autoLearnGames = true;
-  std::string fullscreenMode = "borderless";  // exclusive | borderless | none: comportamento nel fullscreen esclusivo
+  bool fullscreenHint = true;         // avvisa (una volta per gioco) se il gioco usa il fullscreen esclusivo
   std::string forcedProfile;          // vuoto = selezione automatica
   std::string desktopProfile;         // profilo mostrato sul desktop (quello selezionato nelle impostazioni)
   bool checkUpdates = true;           // all'apertura delle impostazioni cerca una versione nuova su GitHub

@@ -18,7 +18,7 @@ struct GpuStats {
   std::optional<double> powerW;
   std::optional<double> vramUsedGB;
   std::optional<double> vramTotalGB;
-  std::optional<double> foregroundVramGB;  // VRAM del solo processo del gioco (se in primo piano)
+  std::optional<double> gameVramGB;  // VRAM dedicata occupata dal solo processo del gioco
 };
 
 // Carico GPU di un singolo processo (per riconoscere i giochi senza bisogno degli FPS).

@@ -70,7 +70,7 @@ enum : int {
   IDC_FORCED,
   IDC_FPSONLY,
   IDC_AUTOLEARN,
-  IDC_FULLSCREEN,
+  IDC_FSHINT,
   IDC_AUTOSTART,
   IDC_EDIT_GAMES = 1300,
   IDC_OPEN_FOLDER,
@@ -98,12 +98,10 @@ constexpr const char* kOutOfGame[] = {"hide", "compact"};
 constexpr const char* kLangCodes[] = {"it", "en"};
 constexpr const wchar_t* kLangNames[] = {L"Italiano", L"English"};
 const wchar_t* const kOutOfGameNames[] = {T(L"Nascondi"), T(L"Profilo selezionato sul desktop")};
-constexpr const char* kFullscreen[] = {"none", "borderless", "exclusive"};
-const wchar_t* const kFullscreenNames[] = {T(L"Nessuno"), T(L"Convertire a borderless"), T(L"Fullscreen esclusivo (overlay non visibile)")};
 
 constexpr int kColorCount = 7;
 const wchar_t* const kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", T(L"Batteria"), T(L"Testo"), T(L"Sfondo")};
-constexpr int kShowCount = 10;
+constexpr int kShowCount = 9;
 const wchar_t* const kShowNames[kShowCount] = {L"FPS",   T(L"Mini-grafico FPS"), L"Frame time",
                                                    L"P95 / P99", L"Stutter %",        L"CPU",
                                                    L"GPU",   L"RAM",              T(L"Batteria (solo portatili)")};
@@ -117,7 +115,7 @@ Color& ColorRef(Profile& p, int i) {
 bool& ShowRef(Profile& p, int i) {
   auto& s = p.show;
   bool* all[kShowCount] = {&s.fps, &s.graph, &s.frametime, &s.percentiles, &s.stutter,
-                           &s.cpu, &s.gpu,   &s.gpuVram,   &s.ram,       &s.battery};
+                           &s.cpu, &s.gpu,   &s.ram,       &s.battery};
   return *all[i];
 }
 
@@ -390,7 +388,7 @@ void GlobalToUi() {
   SetSel(IDC_LANG, CurrentLang() == Lang::En ? 1 : 0);
   SetCheck(IDC_FPSONLY, g.cfg.fpsOnly);
   SetCheck(IDC_AUTOLEARN, g.cfg.autoLearnGames);
-  SetSel(IDC_FULLSCREEN, IndexOf(kFullscreen, g.cfg.fullscreenMode));
+  SetCheck(IDC_FSHINT, g.cfg.fullscreenHint);
   SetCheck(IDC_AUTOSTART, g.cfg.autostart);
   SetCheck(IDC_CHECKUPDATES, g.cfg.checkUpdates);
   RefreshForcedCombo();
@@ -416,7 +414,7 @@ bool UiToGlobal() {
   g.cfg.forcedProfile = forced > 0 && size_t(forced) <= g.profiles.size() ? g.profiles[size_t(forced - 1)].name : "";
   g.cfg.fpsOnly = GetCheck(IDC_FPSONLY);
   g.cfg.autoLearnGames = GetCheck(IDC_AUTOLEARN);
-  g.cfg.fullscreenMode = kFullscreen[GetSel(IDC_FULLSCREEN)];
+  g.cfg.fullscreenHint = GetCheck(IDC_FSHINT);
   g.cfg.autostart = GetCheck(IDC_AUTOSTART);
   g.cfg.checkUpdates = GetCheck(IDC_CHECKUPDATES);
   Sanitize(g.cfg);
@@ -939,14 +937,13 @@ void BuildUi() {
   ui::MakeCombo(Item(IDC_FORCED), ui::col::Panel);
   Label(L"Lingua / Language", 36, grow(3), 120);
   Combo(IDC_LANG, 160, grow(3), 156, kLangNames);
-  Label(T(L"Fullscreen esclusivo"), 36, grow(4), 120);
-  Combo(IDC_FULLSCREEN, 160, grow(4), 160, kFullscreenNames);
   Label(T(L"Mostra / nascondi"), 344, grow(0), 136);
   HotkeyField(IDC_HK_TOGGLE, 484, grow(0));
   Label(T(L"Cambia profilo"), 344, grow(1), 136);
   HotkeyField(IDC_HK_CYCLE, 484, grow(1));
   Label(T(L"Solo FPS"), 344, grow(2), 136);
   HotkeyField(IDC_HK_FPSONLY, 484, grow(2));
+  Check(IDC_FSHINT, T(L"Avvisa se un gioco usa il fullscreen esclusivo"), 344, grow(3) + 2, 310);
   Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 664, grow(0) + 2, 300);
   Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), 664, grow(1) + 2, 300);
   Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), 664, grow(2) + 2, 300);

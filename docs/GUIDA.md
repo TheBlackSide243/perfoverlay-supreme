@@ -110,6 +110,7 @@ Impostazioni › Profilo selezionato › Layout › **"Editor..."**
   - rotellina, Shift+rotellina o tasto centrale del mouse spostano la vista.
 - **Pannello a destra**:
   - visibilità di ogni elemento;
+  - dati mostrati dal blocco selezionato (per la GPU anche "VRAM del gioco": la memoria video occupata dal solo processo del gioco);
   - X / Y e dimensione % del blocco selezionato;
   - passo della griglia;
   - "Ripristina disposizione".
@@ -202,5 +203,5 @@ Per aprire la cartella dalle impostazioni: "Apri cartella dati".
 
 ## Limiti
 
-- Nel fullscreen **esclusivo** l'overlay non si vede. Usa la modalità "Finestra senza bordi" del gioco.
+- Nel fullscreen **esclusivo** l'overlay non si vede. Usa la modalità "Finestra senza bordi" del gioco. Quando un gioco usa il fullscreen esclusivo PerfOverlay Supreme lo segnala con una notifica, una volta per gioco (si disattiva in Impostazioni globali → "Avvisa se un gioco usa il fullscreen esclusivo"). La finestra del gioco non viene mai modificata.
 - Alcuni giochi competitivi vietano gli overlay di terze parti: controlla i termini del gioco.

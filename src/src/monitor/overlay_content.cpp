@@ -5,7 +5,6 @@
 
 #include "common/sensor_feed.h"
 #include "common/util.h"
-
 #include "common/i18n.h"
 
 namespace po {
@@ -158,12 +157,13 @@ void AddGpu(Builder& b, const Profile& p, const SystemSnapshot& s) {
     b.Value(std::format(L" {:.0f}", *s.gpu.clockMHz), c);
     b.Unit(L"MHz", c);
   }
-  if (p.Field("gpu", "vram") && s.gpu.foregroundVramGB) {  // VRAM del solo processo del gioco
-    b.Value(std::format(L" {:.1f}", *s.gpu.foregroundVramGB), c);
-    b.Unit(L"GB", c);
-  } else if (p.Field("gpu", "vram") && s.gpu.vramUsedGB && s.gpu.vramTotalGB) {
+  if (p.Field("gpu", "vram") && s.gpu.vramUsedGB && s.gpu.vramTotalGB) {
     b.Value(std::format(L" {:.1f}/{:.1f}", *s.gpu.vramUsedGB, *s.gpu.vramTotalGB), c);
     b.Unit(L"GB", c);
+  }
+  if (p.Field("gpu", "vramgame") && s.gpu.gameVramGB) {  // VRAM occupata dal solo processo del gioco
+    b.Value(std::format(L" {:.1f}", *s.gpu.gameVramGB), c);
+    b.Unit(T(L"GB gioco"), c);
   }
 }
 

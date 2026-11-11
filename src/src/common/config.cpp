@@ -89,8 +89,7 @@ void from_json(const json& j, GameEntry& g) {
 void to_json(json& j, const ShowFlags& s) {
   j = json{{"fps", s.fps},         {"graph", s.graph},     {"frametime", s.frametime},
            {"percentiles", s.percentiles}, {"stutter", s.stutter}, {"cpu", s.cpu},
-           {"gpu", s.gpu},         {"ram", s.ram},         {"battery", s.battery},
-           {"gpuVram", s.gpuVram}};
+           {"gpu", s.gpu},         {"ram", s.ram},         {"battery", s.battery}};
 }
 void from_json(const json& j, ShowFlags& s) {
   Get(j, "fps", s.fps);
@@ -102,7 +101,6 @@ void from_json(const json& j, ShowFlags& s) {
   Get(j, "gpu", s.gpu);
   Get(j, "ram", s.ram);
   Get(j, "battery", s.battery);
-  Get(j, "gpuVram", s.gpuVram);
 }
 
 void to_json(json& j, const ElementColors& c) {
@@ -332,7 +330,7 @@ void to_json(json& j, const GlobalConfig& c) {
            {"outOfGame", c.outOfGame},
            {"autostart", c.autostart},
            {"autoLearnGames", c.autoLearnGames},
-           {"fullscreenMode", c.fullscreenMode},
+           {"fullscreenHint", c.fullscreenHint},
            {"forcedProfile", c.forcedProfile},
            {"desktopProfile", c.desktopProfile},
            {"language", c.language},
@@ -348,7 +346,7 @@ void from_json(const json& j, GlobalConfig& c) {
   Get(j, "outOfGame", c.outOfGame);
   Get(j, "autostart", c.autostart);
   Get(j, "autoLearnGames", c.autoLearnGames);
-  Get(j, "fullscreenMode", c.fullscreenMode);
+  Get(j, "fullscreenHint", c.fullscreenHint);
   Get(j, "forcedProfile", c.forcedProfile);
   Get(j, "desktopProfile", c.desktopProfile);
   Get(j, "language", c.language);

@@ -22,6 +22,7 @@ std::optional<double> MetricValue(const std::string& key, const SystemSnapshot& 
   if (key == "gpu.power") return s.gpu.powerW;
   if (key == "gpu.clock") return s.gpu.clockMHz;
   if (key == "gpu.vram_mb") return s.gpu.vramUsedGB ? std::optional<double>(*s.gpu.vramUsedGB * 1024.0) : std::nullopt;
+  if (key == "gpu.vram_game_mb") return s.gpu.gameVramGB ? std::optional<double>(*s.gpu.gameVramGB * 1024.0) : std::nullopt;
   if (key == "gpu.vram_pct")
     return s.gpu.vramUsedGB && s.gpu.vramTotalGB && *s.gpu.vramTotalGB > 0
                ? std::optional<double>(100.0 * *s.gpu.vramUsedGB / *s.gpu.vramTotalGB)

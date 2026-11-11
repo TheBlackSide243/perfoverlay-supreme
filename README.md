@@ -70,7 +70,7 @@ PerfOverlay Supreme non inietta DLL, non legge né scrive la memoria dei giochi 
 
 ## Limiti noti
 
-- Nel fullscreen *esclusivo* l'overlay non si vede: usa "Finestra senza bordi".
+- Nel fullscreen *esclusivo* l'overlay non si vede: usa "Finestra senza bordi" (l'app te lo segnala con una notifica).
 - Le latenze Reflex/PresentMon dei preset RTSS mostrano N/A.
 - La temperatura della CPU richiede HWiNFO o LibreHardwareMonitor, perché Windows non la espone senza un driver.
 - La GPU completa è supportata su NVIDIA (NVML). Per AMD e Intel servono HWiNFO o LibreHardwareMonitor.

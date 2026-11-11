@@ -13,7 +13,7 @@ PerfOverlay Supreme **non carica codice nei processi dei giochi** e non aggancia
   | `Microsoft-Windows-DxgKrnl` | `Present` | Vulkan / OpenGL e le altre API che non passano da DXGI |
 
 - **Overlay**: una finestra separata, trasparente, *click-through*, sempre in primo piano, che non prende mai il focus ed è posizionata sopra l'area client del gioco. Usa D3D11 + DirectComposition (alpha per pixel) e Direct2D/DirectWrite per testo, grafici e sprite.
-- **Conseguenza**: funziona con i giochi in finestra e borderless. Nel fullscreen esclusivo gli FPS vengono misurati, ma la finestra non è visibile.
+- **Conseguenza**: funziona con i giochi in finestra e borderless. Nel fullscreen esclusivo gli FPS vengono misurati, ma la finestra non è visibile: il monitor lo rileva con `SHQueryUserNotificationState` (`QUNS_RUNNING_D3D_FULL_SCREEN`) e mostra un avviso nella tray, senza toccare la finestra del gioco.
 
 ## Un solo eseguibile
 
@@ -87,6 +87,7 @@ La versione si scrive solo in `project(... VERSION x.y.z)` di `CMakeLists.txt`: 
 | CPU temperatura / potenza | HWiNFO → LibreHardwareMonitor (WMI o HTTP `127.0.0.1:8085`) | omessa |
 | GPU NVIDIA (tutti i sensori) | NVML, caricata dinamicamente | contatori `GPU Engine` / DXGI |
 | GPU utilizzo, VRAM (altre) | contatori `GPU Engine` / `GPU Adapter Memory` + DXGI | — |
+| VRAM del gioco | contatore `GPU Process Memory` del processo del gioco | omessa |
 | Temperatura SSD | `IOCTL_STORAGE_QUERY_PROPERTY` (StorageDeviceTemperatureProperty) | omessa |
 | Dischi, rete, zone termiche ACPI | PDH | — |
 | RAM | `GlobalMemoryStatusEx`, velocità da WMI | velocità omessa |

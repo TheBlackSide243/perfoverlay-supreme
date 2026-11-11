@@ -27,6 +27,20 @@ std::string Trim(std::string_view s) {
   return std::string(s.substr(b, e - b + 1));
 }
 
+std::wstring CleanTitle(std::wstring_view w) {
+  std::wstring out;
+  out.reserve(w.size());
+  for (const wchar_t c : w) {
+    const bool invisible = c == 0x00AD || (c >= 0x200B && c <= 0x200F) || (c >= 0x202A && c <= 0x202E) ||
+                           (c >= 0x2060 && c <= 0x2064) || c == 0xFEFF;
+    if (!invisible) out.push_back(c);
+  }
+  constexpr const wchar_t* kSpace = L" \t\r\n";
+  const auto b = out.find_first_not_of(kSpace);
+  if (b == std::wstring::npos) return {};
+  return out.substr(b, out.find_last_not_of(kSpace) - b + 1);
+}
+
 std::vector<std::string> Split(std::string_view s, char sep) {
   std::vector<std::string> out;
   size_t start = 0;

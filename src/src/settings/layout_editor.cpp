@@ -247,6 +247,7 @@ std::vector<Piece> Sample(const Profile& p, const std::string& el) {
     if (on("temp")) add({{L" 71", c}, {L"°C", c, 0.72f}});
     if (on("clock")) add({{L" 2610", c}, {L"MHz", c, 0.72f}});
     if (on("vram")) add({{L" 7.9/9.8", c}, {L"GB", c, 0.72f}});
+    if (on("vramgame")) add({{L" 5.2", c}, {T(L"GB gioco"), c, 0.72f}});
   } else if (el == "ram") {
     const COLORREF c = val(p.colors.ram);
     add({label(L"RAM ", p.colors.ram)});
@@ -342,6 +343,7 @@ std::wstring RtssSampleText(const RtssLayer& l) {
     s.gpu.powerW = 212;
     s.gpu.vramUsedGB = 7.9;
     s.gpu.vramTotalGB = 9.8;
+    s.gpu.gameVramGB = 5.2;
     s.ram.usedGB = 16.8;
     s.ram.totalGB = 31.1;
     s.battery.present = true;

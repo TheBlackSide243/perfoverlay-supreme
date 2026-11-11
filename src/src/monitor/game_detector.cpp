@@ -44,7 +44,7 @@ ForegroundInfo QueryForeground() {
 
   wchar_t buf[512];
   const int tn = GetWindowTextW(fg.hwnd, buf, int(std::size(buf)));
-  fg.title = ToUtf8(std::wstring_view(buf, size_t(std::max(tn, 0))));
+  fg.title = ToUtf8(CleanTitle(std::wstring_view(buf, size_t(std::max(tn, 0)))));
   const int cn = GetClassNameW(fg.hwnd, buf, int(std::size(buf)));
   fg.windowClass = ToUtf8(std::wstring_view(buf, size_t(std::max(cn, 0))));
 

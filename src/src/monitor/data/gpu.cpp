@@ -162,17 +162,29 @@ GpuStats GpuMonitor::Sample(DWORD gamePid, DWORD watchPid, ProcessGpu* watch) {
     if (ParseAdapterMem(inst, hi, lo) && hi == ad.luidHi && lo == ad.luidLo) s.vramUsedGB = v / kGB;
   }
 
+  // VRAM dedicata per processo: una sola lettura per il gioco e per la finestra osservata.
+  double gameBytes = 0, watchBytes = 0;
+  bool gameFound = false;
+  if (processDedicated_ && (gamePid || watchPid)) {
+    for (const auto& [inst, v] : PdhReadArray(processDedicated_)) {
+      unsigned pid = 0, hi, lo, phys;
+      if (swscanf_s(inst.c_str(), L"pid_%u_luid_0x%x_0x%x_phys_%u", &pid, &hi, &lo, &phys) != 4) continue;
+      if (gamePid && pid == gamePid) {
+        gameBytes += v;
+        gameFound = true;
+      }
+      if (watchPid && pid == watchPid) watchBytes += v;
+    }
+  }
+  if (gameFound && gameBytes > 0) s.gameVramGB = gameBytes / kGB;
+
   if (watch) {
     *watch = {};
     watch->pid = watchPid;
     if (watchPid && engineUtil_) {
       watch->valid = true;
       for (const auto& [key, v] : watch3D) watch->usage3D = std::max(watch->usage3D, std::clamp(v, 0.0, 100.0));
-      for (const auto& [inst, v] : PdhReadArray(processDedicated_)) {
-        unsigned pid = 0, hi, lo, phys;
-        if (swscanf_s(inst.c_str(), L"pid_%u_luid_0x%x_0x%x_phys_%u", &pid, &hi, &lo, &phys) == 4 && pid == watchPid)
-          watch->vramMB += v / (1024.0 * 1024.0);
-      }
+      watch->vramMB = watchBytes / (1024.0 * 1024.0);
     }
   }
   return s;

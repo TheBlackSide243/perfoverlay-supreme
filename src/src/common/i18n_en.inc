@@ -296,6 +296,12 @@ constexpr WEntry kWide[] = {
     {L"\n\nAprire la pagina della release?", L"\n\nOpen the release page?"},
     {L"È disponibile la versione v{}: premi \"Aggiorna\" in alto.", L"Version v{} is available: press \"Update\" at the top."},
     {L"Controlla aggiornamenti all'avvio", L"Check for updates at startup"},
+    {L"Il gioco", L"The game"},
+    {L"VRAM del gioco", L"Game VRAM"},
+    {L"GB gioco", L"GB game"},
+    {L"Fullscreen esclusivo", L"Exclusive fullscreen"},
+    {L" usa il fullscreen esclusivo: l'overlay potrebbe non comparire. Nelle opzioni video del gioco scegli \"Finestra senza bordi\" (borderless).", L" uses exclusive fullscreen: the overlay may not appear. In the game's video options choose \"Borderless window\"."},
+    {L"Avvisa se un gioco usa il fullscreen esclusivo", L"Warn when a game uses exclusive fullscreen"},
 };
 
 constexpr NEntry kNarrow[] = {

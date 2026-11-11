@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.2.0 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.3.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -60,7 +60,6 @@ add_executable(PerfOverlay WIN32
   src/monitor/data/sensors.cpp
   src/monitor/data/system_sensors.cpp
   src/monitor/data/nvml.cpp
-  src/monitor/data/adtreport.cpp
   src/monitor/data/wmi.cpp
   src/settings/main.cpp
   src/settings/settings_window.cpp
@@ -75,7 +74,7 @@ add_executable(PerfOverlay WIN32
 # asInvoker: impostazioni e prova girano senza privilegi; l'overlay si rilancia da solo come amministratore
 # (serve per gli eventi ETW da cui arrivano gli FPS).
 target_link_libraries(PerfOverlay PRIVATE po_common
-  d3d11 d3d12 dxgi d2d1 dwrite dcomp d3dcompiler pdh powrprof wbemuuid oleaut32 gdi32 comctl32 comdlg32 psapi urlmon wininet winhttp bcrypt dwmapi)
+  d3d11 d3d12 dxgi d2d1 dwrite dcomp d3dcompiler pdh powrprof wbemuuid oleaut32 gdi32 comctl32 comdlg32 psapi urlmon wininet winhttp bcrypt)
 
 # Nomi degli eseguibili distinti da PerfOverlay: le due app possono convivere.
 set_target_properties(PerfOverlay PROPERTIES OUTPUT_NAME PerfOverlaySupreme)
@@ -97,6 +96,5 @@ add_executable(rtss-preview EXCLUDE_FROM_ALL
   src/monitor/data/sensors.cpp
   src/monitor/data/system_sensors.cpp
   src/monitor/data/nvml.cpp
-  src/monitor/data/adtreport.cpp
   src/monitor/data/wmi.cpp)
 target_link_libraries(rtss-preview PRIVATE po_common d3d11 dxgi d2d1 dwrite dcomp pdh powrprof wbemuuid oleaut32 psapi winhttp)

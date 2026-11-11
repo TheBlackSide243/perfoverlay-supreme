@@ -1,6 +1,4 @@
 #pragma once
-#include <windows.h>
-
 #include <filesystem>
 #include <string_view>
 
@@ -24,9 +22,5 @@ bool IsAutostartEnabled();
 // true se il monitor era in esecuzione ed è stato notificato.
 bool NotifyMonitorReload();
 void NotifyMonitorSuspendHotkeys(bool suspend);
-
-// Converte il gioco da fullscreen esclusivo a borderless (o viceversa) usando DWM Flip3D.
-// Se il gioco è in fullscreen esclusivo, lo converte a borderless per rendere visibile l'overlay.
-bool ConvertFullscreenToBorderless(HWND hwnd);
 
 }  // namespace po

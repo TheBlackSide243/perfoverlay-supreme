@@ -330,6 +330,8 @@ RtssEngine::Val RtssEngine::Builtin(const std::string& rawName) {
       return v.ok ? v : sensor("nv:0:fan");
     }
     if (g == "fan speed 2") return sensor("nv:0:fan1");
+    if (g.find("memory usage") != std::string::npos && g.find("process") != std::string::npos)
+      return s.gpu.gameVramGB ? num(*s.gpu.gameVramGB * 1024.0) : Val{};
     if (g == "memory usage")
       return s.gpu.vramUsedGB ? num(*s.gpu.vramUsedGB * 1024.0) : Val{};
     if (g == "total memory")
