@@ -78,6 +78,8 @@ La versione si scrive solo in `project(... VERSION x.y.z)` di `CMakeLists.txt`: 
 
 `src/settings/updater.*` legge `releases/latest` dall'API di GitHub (WinHTTP), scarica l'asset `PerfOverlaySupreme.exe` accanto all'exe (`<exe>.download`) e ne verifica il campo `digest` (SHA-256, BCrypt). Poi rinomina l'exe in uso in `<exe>.old` (un exe in esecuzione si può rinominare ma non cancellare) e mette il nuovo al suo posto. Il `.old` viene cancellato al successivo avvio. Le note mostrate nell'app sono il messaggio del tag, che il workflow usa come testo della release.
 
+Aggiornamento automatico (`autoUpdate`, "Aggiornamenti: Automatici"): lo fa l'overlay (`App::StartAutoUpdate` in `monitor/app.cpp`), un minuto dopo l'avvio e poi ogni 6 ore. Controllo e download girano in un thread; l'exe verificato resta in `pendingUpdate_` finché non c'è un gioco in primo piano (`lastGamePid_ == 0`). Poi `InstallUpdate` lo mette al suo posto, l'overlay si chiude e `RunMonitor` (`monitor/main.cpp`), dopo aver liberato il mutex di istanza singola, avvia il nuovo exe con `--monitor --updated`: eredita i permessi di amministratore, quindi nessuna richiesta UAC. Con `--updated` il nuovo processo aspetta fino a 20 s il mutex e mostra la notifica "aggiornato alla vX".
+
 ## Sorgenti dei dati
 
 | Dato | Sorgente | Fallback |

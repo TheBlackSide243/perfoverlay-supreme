@@ -1,21 +1,45 @@
-MIT License
+Copyright (c) 2026 TheBlackSide243. All rights reserved.
 
-Copyright (c) 2026 theblackside243
+PerfOverlay Supreme (the program, its source code, its documentation, images and everything else in
+this repository, except the third-party parts listed below) is proprietary software. Its source is
+published on GitHub only so that it can be read.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The only permissions given are those GitHub's Terms of Service require for a public repository:
+viewing the repository and forking it on GitHub. No permission is given to use, copy, modify,
+compile, distribute, publish, sell, or make other works from PerfOverlay Supreme or any part of it,
+outside or inside GitHub, without written permission from the owner.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+PerfOverlay Supreme may be downloaded from the owner's own releases
+(https://github.com/TheBlackSide243/perfoverlay-supreme/releases) and used free of charge for
+personal use. It must not be redistributed, repackaged or published elsewhere.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Third-party parts keep their own licenses: nlohmann/json (MIT license), downloaded when the program
+is built. RTSS presets and store overlays belong to their authors and are not part of this
+repository.
+
+THE PROGRAM IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE OWNER IS NOT LIABLE FOR ANY
+DAMAGE ARISING FROM ITS USE.
+
+---
+
+Copyright (c) 2026 TheBlackSide243. Tutti i diritti riservati.
+
+PerfOverlay Supreme (il programma, il codice sorgente, la documentazione, le immagini e tutto il
+resto di questo repository, tranne le parti di terzi elencate sotto) è software proprietario. Il
+codice è pubblicato su GitHub solo perché si possa leggere.
+
+Gli unici permessi concessi sono quelli che le Condizioni d'uso di GitHub richiedono per un
+repository pubblico: vedere il repository e farne un fork su GitHub. Non è concesso usare, copiare,
+modificare, compilare, distribuire, pubblicare, vendere o fare altre opere da PerfOverlay Supreme o
+da una sua parte, fuori o dentro GitHub, senza il permesso scritto del proprietario.
+
+PerfOverlay Supreme si può scaricare dalle release del proprietario
+(https://github.com/TheBlackSide243/perfoverlay-supreme/releases) e usare gratuitamente per uso
+personale. Non si può ridistribuire, ripubblicare o pubblicare altrove.
+
+Le parti di terzi mantengono la loro licenza: nlohmann/json (licenza MIT), scaricata quando il
+programma viene compilato. I preset RTSS e gli overlay dello store appartengono ai loro autori e non
+fanno parte di questo repository.
+
+IL PROGRAMMA È FORNITO "COSÌ COM'È", SENZA GARANZIE DI ALCUN TIPO. IL PROPRIETARIO NON È
+RESPONSABILE DI DANNI DERIVANTI DAL SUO USO.

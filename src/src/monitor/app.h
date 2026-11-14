@@ -1,11 +1,13 @@
 #pragma once
 #include <windows.h>
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "common/config.h"
+#include "settings/updater.h"
 #include "monitor/frame_source.h"
 #include "monitor/game_detector.h"
 #include "monitor/overlay_window.h"
@@ -16,7 +18,8 @@ namespace po {
 
 class App {
  public:
-  int Run(HINSTANCE inst);
+  int Run(HINSTANCE inst, bool justUpdated = false);  // justUpdated: avviato dopo un aggiornamento automatico
+  bool RestartAfterUpdate() const { return restartAfterUpdate_; }  // exe sostituito: va riavviato
 
  private:
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
@@ -39,6 +42,8 @@ class App {
   void ShowTrayBalloon(const std::wstring& title, const std::wstring& text);
   void OpenSettings();
   void Launch(const wchar_t* args);
+  void StartAutoUpdate();   // controllo e download in background
+  void TryInstallUpdate();  // installa l'aggiornamento scaricato e riavvia l'overlay, se non c'è un gioco
 
   HINSTANCE inst_ = nullptr;
   HWND wnd_ = nullptr;
@@ -65,6 +70,11 @@ class App {
   DWORD lastGamePid_ = 0;
   std::set<std::string> fullscreenHinted_;  // giochi già avvisati del fullscreen esclusivo (per sessione)
   std::string lastProfile_;
+
+  bool updateBusy_ = false;              // controllo/download in corso
+  bool updateFailed_ = false;            // installazione impossibile (cartella protetta): non si riprova
+  bool restartAfterUpdate_ = false;
+  std::optional<UpdateInfo> pendingUpdate_;  // scaricato e verificato, in attesa che non ci sia un gioco
 };
 
 }  // namespace po

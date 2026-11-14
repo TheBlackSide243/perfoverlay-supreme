@@ -172,16 +172,24 @@ Impostazioni › Impostazioni globali › **"Lingua / Language"**: Italiano o En
 
 ## Aggiornamenti
 
-All'apertura, le impostazioni controllano su GitHub se c'è una versione più nuova (la versione in uso è scritta accanto al titolo). Se c'è, in alto compare il pulsante **"Aggiorna a vX.Y.Z"**:
+La scelta è in Impostazioni globali › **Aggiornamenti**:
+
+| Scelta | Cosa fa |
+|---|---|
+| **Automatici** (predefinita) | l'overlay controlla GitHub un minuto dopo l'avvio e poi ogni 6 ore. Se c'è una versione nuova la scarica, la verifica e la installa da solo, poi si riavvia e lo segnala con una notifica. Non lo fa mai mentre stai giocando: aspetta che il gioco non sia più in primo piano. |
+| **Solo avviso** | niente installazioni automatiche: compare solo il pulsante nelle impostazioni (vedi sotto). |
+| **Disattivati** | nessun controllo. |
+
+Inoltre all'apertura, le impostazioni controllano su GitHub se c'è una versione più nuova (la versione in uso è scritta accanto al titolo). Se c'è, in alto compare il pulsante **"Aggiorna a vX.Y.Z"**:
 
 1. mostra le novità e chiede conferma;
 2. salva le modifiche in corso;
 3. scarica il nuovo exe e controlla che sia identico a quello della release (impronta SHA-256 pubblicata da GitHub);
 4. chiude l'overlay, mette il nuovo exe al posto di quello vecchio (stesso nome e cartella) e riapre impostazioni e overlay.
 
-Se l'exe sta in una cartella protetta (es. Programmi), la sostituzione non riesce: l'app propone di aprire la pagina della release per scaricarlo a mano. Il controllo all'avvio si disattiva con **"Controlla aggiornamenti all'avvio"** nelle impostazioni globali.
+Se l'exe sta in una cartella protetta (es. Programmi), la sostituzione non riesce: l'app propone di aprire la pagina della release per scaricarlo a mano. Anche l'aggiornamento automatico in quel caso non riesce: lo segnala con una notifica e non riprova fino al riavvio.
 
-L'aggiornamento dall'app c'è dalla v1.2.0: chi ha una versione precedente deve scaricare la v1.2.0 a mano una volta.
+L'aggiornamento dall'app c'è dalla v1.2.0, quello automatico dalla v1.4.0. Chi ha una versione precedente alla v1.2.0 deve scaricare l'ultima a mano una volta.
 
 ## Amministratore e FPS
 

@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <format>
+#include <memory>
 #include <optional>
+#include <thread>
 #include <shellapi.h>
 
 #include "common/branding.h"
@@ -24,7 +26,11 @@ namespace po {
 namespace {
 
 constexpr UINT kMsgTray = WM_APP + 1;
+constexpr UINT kMsgUpdateReady = WM_APP + 10;  // lParam = UpdateInfo* scaricato e verificato, o nullptr
 constexpr UINT_PTR kTimerTick = 1;
+constexpr UINT_PTR kTimerUpdate = 2;
+constexpr UINT kFirstUpdateCheckMs = 60 * 1000;          // un minuto dopo l'avvio
+constexpr UINT kUpdateCheckEveryMs = 6 * 60 * 60 * 1000;  // poi ogni 6 ore
 constexpr ULONGLONG kToastMs = 2000;
 
 enum HotkeyId { kHkToggle = 1, kHkCycle, kHkFpsOnly };
@@ -41,7 +47,7 @@ enum MenuId : UINT {
 
 }  // namespace
 
-int App::Run(HINSTANCE inst) {
+int App::Run(HINSTANCE inst, bool justUpdated) {
   inst_ = inst;
   EnableDarkModeForApp();  // menu della tray in tema scuro, come la UI impostazioni
   LoadAll();
@@ -72,7 +78,12 @@ int App::Run(HINSTANCE inst) {
   RegisterHotkeys();
   AddTray();
   SetTimer(wnd_, kTimerTick, UINT(cfg_.refreshMs), nullptr);
-  LogInfo("PerfOverlay Supreme avviato (refresh {} ms, FPS {})", cfg_.refreshMs, framesOk_ ? "attivi" : "non disponibili");
+  SetTimer(wnd_, kTimerUpdate, kFirstUpdateCheckMs, nullptr);
+  LogInfo("PerfOverlay Supreme {} avviato (refresh {} ms, FPS {})", AppVersion(), cfg_.refreshMs,
+          framesOk_ ? "attivi" : "non disponibili");
+  if (justUpdated)
+    ShowTrayBalloon(T(L"PerfOverlay Supreme aggiornato"),
+                    TF(L"Ora è in uso la versione v{}.", ToWide(std::string(AppVersion()))));
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
@@ -81,6 +92,7 @@ int App::Run(HINSTANCE inst) {
   }
 
   KillTimer(wnd_, kTimerTick);
+  KillTimer(wnd_, kTimerUpdate);
   UnregisterHotkeys();
   RemoveTray();
   overlay_.Show(false);
@@ -103,8 +115,23 @@ LRESULT CALLBACK App::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 LRESULT App::Handle(UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
     case WM_TIMER:
-      if (wp == kTimerTick) Tick();
+      if (wp == kTimerTick) {
+        Tick();
+        if (pendingUpdate_) TryInstallUpdate();  // appena si esce dal gioco
+      } else if (wp == kTimerUpdate) {
+        SetTimer(wnd_, kTimerUpdate, kUpdateCheckEveryMs, nullptr);
+        StartAutoUpdate();
+      }
       return 0;
+    case kMsgUpdateReady: {
+      updateBusy_ = false;
+      std::unique_ptr<UpdateInfo> u(reinterpret_cast<UpdateInfo*>(lp));
+      if (u) {
+        pendingUpdate_ = std::move(*u);
+        TryInstallUpdate();
+      }
+      return 0;
+    }
     case WM_HOTKEY:
       if (wp == kHkToggle) ToggleVisibility();
       if (wp == kHkCycle) CycleProfile();
@@ -133,6 +160,7 @@ LRESULT App::Handle(UINT msg, WPARAM wp, LPARAM lp) {
       stats_.SetInterval(cfg_.refreshMs);
       if (cfg_.autostart != autostartApplied_) ApplyAutostart();
       if (oldRefresh != cfg_.refreshMs) SetTimer(wnd_, kTimerTick, UINT(cfg_.refreshMs), nullptr);
+      if (!cfg_.autoUpdate) pendingUpdate_.reset();
       lastProfile_.clear();
       Tick();
       return 0;
@@ -461,6 +489,43 @@ void App::Launch(const wchar_t* args) {
     LogWarn("Impossibile avviare {} {} (errore {})", ToUtf8(exe.wstring()), ToUtf8(args), GetLastError());
     ShowToast(T(L"Impossibile aprire la finestra: vedi il log"));
   }
+}
+
+// Aggiornamento automatico: cerca l'ultima release su GitHub e, se è più nuova, ne scarica l'exe e lo
+// verifica (SHA-256) in un thread a parte. L'installazione avviene poi sul thread della finestra.
+void App::StartAutoUpdate() {
+  if (!cfg_.checkUpdates || !cfg_.autoUpdate || updateBusy_ || updateFailed_ || pendingUpdate_) return;
+  updateBusy_ = true;
+  std::thread([wnd = wnd_] {
+    std::wstring error;
+    UpdateInfo* ready = nullptr;
+    if (auto u = CheckForUpdate(error)) {
+      LogInfo("Aggiornamento automatico: scarico la v{}", u->version);
+      if (DownloadUpdate(*u, error))
+        ready = new UpdateInfo(std::move(*u));
+      else
+        LogWarn("Aggiornamento automatico: download non riuscito ({})", ToUtf8(error));
+    }
+    if (!PostMessageW(wnd, kMsgUpdateReady, 0, reinterpret_cast<LPARAM>(ready))) delete ready;
+  }).detach();
+}
+
+// Mai durante una partita: l'aggiornamento resta in attesa finché non c'è più un gioco in primo piano.
+// L'exe nuovo prende il posto di quello in uso; l'overlay si chiude e RunMonitor (main.cpp) lo riavvia.
+void App::TryInstallUpdate() {
+  if (!pendingUpdate_ || lastGamePid_) return;
+  const UpdateInfo u = std::move(*pendingUpdate_);
+  pendingUpdate_.reset();
+  std::wstring error;
+  if (!InstallUpdate(error)) {
+    updateFailed_ = true;
+    LogWarn("Aggiornamento automatico alla v{} non riuscito: {}", u.version, ToUtf8(error));
+    ShowTrayBalloon(T(L"Aggiornamento non riuscito"), error);
+    return;
+  }
+  LogInfo("Aggiornamento automatico alla v{} installato: riavvio dell'overlay", u.version);
+  restartAfterUpdate_ = true;
+  DestroyWindow(wnd_);
 }
 
 }  // namespace po

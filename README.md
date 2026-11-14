@@ -4,7 +4,7 @@
 [![Download](https://img.shields.io/github/downloads/TheBlackSide243/perfoverlay-supreme/total?label=download)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/TheBlackSide243/perfoverlay-supreme/build.yml?branch=main&label=build)](https://github.com/TheBlackSide243/perfoverlay-supreme/actions/workflows/build.yml)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)](#download-e-uso)
-[![Licenza MIT](https://img.shields.io/github/license/TheBlackSide243/perfoverlay-supreme?label=licenza)](LICENSE)
+[![Licenza: tutti i diritti riservati](https://img.shields.io/badge/licenza-tutti%20i%20diritti%20riservati-red)](LICENSE)
 
 🇮🇹 **Italiano** · 🇬🇧 [English](README.en.md)
 
@@ -45,11 +45,11 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 - **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
 - **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › "Lingua / Language". La prima volta segue la lingua di Windows.
-- **Aggiornamento dall'app**: quando esce una nuova versione compare il pulsante "Aggiorna a vX.Y.Z" in alto nelle impostazioni. L'exe viene scaricato da GitHub, verificato (SHA-256) e sostituito, poi impostazioni e overlay si riaprono da soli.
+- **Aggiornamento automatico**: l'overlay controlla GitHub ogni 6 ore e installa da solo le versioni nuove (mai durante una partita), poi si riavvia e lo segnala con una notifica. L'exe viene verificato (SHA-256) prima di sostituire quello in uso. In Impostazioni › "Aggiornamenti" si può scegliere anche "Solo avviso" (pulsante "Aggiorna a vX.Y.Z" nelle impostazioni) o "Disattivati".
 
 ## Download e uso
 
-1. Scarica `PerfOverlaySupreme.exe` dalla pagina [Releases](../../releases). In alternativa [compilalo](#compilare).
+1. Scarica `PerfOverlaySupreme.exe` dalla pagina [Releases](../../releases).
 2. Doppio clic: l'overlay si avvia come amministratore (serve per gli FPS) e compare l'icona vicino all'orologio.
 3. Doppio clic di nuovo, oppure tasto destro sull'icona › Impostazioni: profili, editor, sensori, store.
 
@@ -71,6 +71,8 @@ Le hotkey si cambiano nelle impostazioni.
 La guida completa è in [docs/GUIDA.md](docs/GUIDA.md).
 
 ## Compilare
+
+La compilazione è riservata al proprietario o a chi ha il suo permesso scritto (vedi [Licenza](#licenza)).
 
 Requisiti:
 
@@ -110,4 +112,4 @@ PerfOverlay Supreme non inietta DLL, non legge né scrive la memoria dei giochi 
 
 ## Licenza
 
-[MIT](LICENSE)
+**Tutti i diritti riservati.** PerfOverlay Supreme è software proprietario: il codice è pubblico solo perché si possa leggere. Puoi scaricare l'exe dalle [release](../../releases) e usarlo gratis per uso personale. Copiare, modificare, compilare, ridistribuire o pubblicare il programma o parti del codice richiede il permesso scritto del proprietario. Testo completo in [LICENSE](LICENSE).

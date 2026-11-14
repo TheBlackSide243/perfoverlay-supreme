@@ -98,6 +98,8 @@ constexpr const char* kOutOfGame[] = {"hide", "compact"};
 constexpr const char* kLangCodes[] = {"it", "en"};
 constexpr const wchar_t* kLangNames[] = {L"Italiano", L"English"};
 const wchar_t* const kOutOfGameNames[] = {T(L"Nascondi"), T(L"Profilo selezionato sul desktop")};
+// Aggiornamenti: 0 = installati dall'overlay da soli, 1 = solo il pulsante nelle impostazioni, 2 = nessun controllo.
+const wchar_t* const kUpdateNames[] = {T(L"Automatici"), T(L"Solo avviso"), T(L"Disattivati")};
 
 constexpr int kColorCount = 7;
 const wchar_t* const kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", T(L"Batteria"), T(L"Testo"), T(L"Sfondo")};
@@ -400,7 +402,7 @@ void GlobalToUi() {
   SetCheck(IDC_AUTOLEARN, g.cfg.autoLearnGames);
   SetCheck(IDC_FSHINT, g.cfg.fullscreenHint);
   SetCheck(IDC_AUTOSTART, g.cfg.autostart);
-  SetCheck(IDC_CHECKUPDATES, g.cfg.checkUpdates);
+  SetSel(IDC_CHECKUPDATES, !g.cfg.checkUpdates ? 2 : g.cfg.autoUpdate ? 0 : 1);
   RefreshForcedCombo();
 }
 
@@ -426,7 +428,9 @@ bool UiToGlobal() {
   g.cfg.autoLearnGames = GetCheck(IDC_AUTOLEARN);
   g.cfg.fullscreenHint = GetCheck(IDC_FSHINT);
   g.cfg.autostart = GetCheck(IDC_AUTOSTART);
-  g.cfg.checkUpdates = GetCheck(IDC_CHECKUPDATES);
+  const int updates = GetSel(IDC_CHECKUPDATES);
+  g.cfg.checkUpdates = updates != 2;
+  g.cfg.autoUpdate = updates == 0;
   Sanitize(g.cfg);
   return true;
 }
@@ -957,7 +961,8 @@ void BuildUi() {
   Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 664, grow(0) + 2, 300);
   Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), 664, grow(1) + 2, 300);
   Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), 664, grow(2) + 2, 300);
-  Check(IDC_CHECKUPDATES, T(L"Controlla aggiornamenti all'avvio"), 664, grow(3) + 2, 300);
+  Label(T(L"Aggiornamenti"), 664, grow(3), 120);
+  Combo(IDC_CHECKUPDATES, 788, grow(3), 176, kUpdateNames);
 
   // Barra inferiore
   Button(IDC_EDIT_GAMES, T(L"Lista giochi..."), 20, 756, 176, 32);

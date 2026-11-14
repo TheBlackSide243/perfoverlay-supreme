@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/github/downloads/TheBlackSide243/perfoverlay-supreme/total)](https://github.com/TheBlackSide243/perfoverlay-supreme/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/TheBlackSide243/perfoverlay-supreme/build.yml?branch=main&label=build)](https://github.com/TheBlackSide243/perfoverlay-supreme/actions/workflows/build.yml)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)](#download-and-usage)
-[![MIT license](https://img.shields.io/github/license/TheBlackSide243/perfoverlay-supreme)](LICENSE)
+[![License: all rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-red)](LICENSE)
 
 🇮🇹 [Italiano](README.md) · 🇬🇧 **English**
 
@@ -51,11 +51,11 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
 - **English or Italian UI**: pick it in Settings › "Lingua / Language". The first time it follows the Windows language.
-- **In-app updates**: when a new version is out, an "Update to vX.Y.Z" button appears at the top of the settings. The exe is downloaded from GitHub, verified (SHA-256) and replaced, then settings and overlay reopen by themselves.
+- **Automatic updates**: the overlay checks GitHub every 6 hours and installs new versions by itself (never during a game), then restarts and tells you with a notification. The exe is verified (SHA-256) before it replaces the one in use. In Settings › "Updates" you can also pick "Notify only" (an "Update to vX.Y.Z" button in the settings) or "Off".
 
 ## Download and usage
 
-1. Download `PerfOverlaySupreme.exe` from [Releases](../../releases), or [build it](#building).
+1. Download `PerfOverlaySupreme.exe` from [Releases](../../releases).
 2. Double-click it. The overlay starts as administrator, which reading FPS requires, and an icon appears next to the clock.
 3. To open the settings, double-click the exe again or right-click the tray icon and choose Settings. The settings cover profiles, the editor, sensors, the store and the UI language.
 
@@ -77,6 +77,8 @@ Hotkeys can be changed in the settings.
 The full user guide (in Italian) is in [docs/GUIDA.md](docs/GUIDA.md).
 
 ## Building
+
+Building is reserved to the owner or to people with the owner's written permission (see [License](#license)).
 
 Requirements:
 - Visual Studio 2022 or Build Tools, with the *Desktop development with C++* workload (MSVC x64 + Windows SDK);
@@ -117,4 +119,4 @@ PerfOverlay Supreme does not inject DLLs, does not read or write game memory, an
 
 ## License
 
-[MIT](LICENSE)
+**All rights reserved.** PerfOverlay Supreme is proprietary software: the source is public only so that it can be read. You can download the exe from the [releases](../../releases) and use it free of charge for personal use. Copying, modifying, building, redistributing or publishing the program or any part of the code requires the owner's written permission. Full text in [LICENSE](LICENSE).

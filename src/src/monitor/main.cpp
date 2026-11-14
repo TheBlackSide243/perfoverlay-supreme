@@ -33,18 +33,39 @@ bool IsElevated() {
 
 bool HasArg(const wchar_t* cmd, const wchar_t* arg) { return cmd && wcsstr(cmd, arg) != nullptr; }
 
-int RunMonitor(HINSTANCE inst) {
+int RunMonitor(HINSTANCE inst, bool justUpdated) {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   // Istanza singola: una seconda esecuzione chiede solo di ricaricare la configurazione.
-  HANDLE mutex = CreateMutexW(nullptr, TRUE, L"Local\\PerfOverlaySupreme.Monitor");
-  if (GetLastError() == ERROR_ALREADY_EXISTS) {
-    po::NotifyMonitorReload();
-    return 0;
+  // Dopo un aggiornamento automatico invece si aspetta (fino a 20 s) che la versione vecchia si chiuda.
+  HANDLE mutex = nullptr;
+  for (int attempt = 0;; ++attempt) {
+    mutex = CreateMutexW(nullptr, TRUE, L"Local\\PerfOverlaySupreme.Monitor");
+    if (GetLastError() != ERROR_ALREADY_EXISTS) break;
+    if (mutex) CloseHandle(mutex);
+    if (!justUpdated || attempt >= 80) {
+      po::NotifyMonitorReload();
+      return 0;
+    }
+    Sleep(250);
   }
   po::LogInit("monitor");
   po::App app;
-  const int rc = app.Run(inst);
+  const int rc = app.Run(inst, justUpdated);
   if (mutex) CloseHandle(mutex);
+  if (app.RestartAfterUpdate()) {
+    // Aggiornamento automatico: l'exe è già quello nuovo. Parte solo ora che il mutex è libero ed
+    // eredita i permessi di amministratore di questo processo (nessuna richiesta UAC).
+    const std::wstring exe = po::ExePath().wstring();
+    std::wstring line = L"\"" + exe + L"\" --monitor --updated";
+    STARTUPINFOW si{sizeof(si)};
+    PROCESS_INFORMATION pi{};
+    if (CreateProcessW(exe.c_str(), line.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+      CloseHandle(pi.hThread);
+      CloseHandle(pi.hProcess);
+    } else {
+      po::LogWarn("Riavvio dopo l'aggiornamento non riuscito (errore {})", GetLastError());
+    }
+  }
   return rc;
 }
 
@@ -55,16 +76,16 @@ int RunMonitor(HINSTANCE inst) {
 //                       (serve per leggere gli FPS dagli eventi di Windows).
 //   --settings          impostazioni          --import-rtss "file" [profilo]   importa un preset RTSS
 //   --test [dx11]       finestra di prova DirectX 11/12 per vedere l'overlay
-//   --monitor           overlay (usato dopo la richiesta di elevazione)
+//   --monitor           overlay (usato dopo la richiesta di elevazione; con --updated dopo un aggiornamento)
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int show) {
   po::CleanupUpdateFiles();  // <exe>.old lasciato da un aggiornamento
   if (HasArg(cmd, L"--test")) return po::RunOverlayTest(inst, cmd, show);
   if (HasArg(cmd, L"--settings") || HasArg(cmd, L"--import-rtss")) return po::RunSettingsMain(inst, show);
-  if (HasArg(cmd, L"--monitor")) return RunMonitor(inst);
+  if (HasArg(cmd, L"--monitor")) return RunMonitor(inst, HasArg(cmd, L"--updated"));
 
   // Doppio clic sull'exe: se l'overlay è già attivo apri le impostazioni, altrimenti avvialo.
   if (FindWindowW(po::kMonitorWndClass, nullptr)) return po::RunSettingsMain(inst, show);
-  if (IsElevated()) return RunMonitor(inst);
+  if (IsElevated()) return RunMonitor(inst, false);
   wchar_t self[MAX_PATH * 2];
   GetModuleFileNameW(nullptr, self, DWORD(std::size(self)));
   SHELLEXECUTEINFOW sei{sizeof(sei)};
