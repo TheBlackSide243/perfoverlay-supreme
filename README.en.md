@@ -14,7 +14,7 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 
 **[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Settings**: profiles, layout, visible items, colors, hotkeys and language in a single resizable window (Italian UI shown; English is available).
+**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with an interface color of your choice (Italian UI shown; English is available).
 
 ![Settings window](docs/images/settings.png)
 
@@ -50,7 +50,8 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
-- **English or Italian UI**: pick it in Settings › "Lingua / Language". The first time it follows the Windows language.
+- **English or Italian UI**: pick it in Settings › General › "Lingua / Language". The first time it follows the Windows language.
+- **Interface color of your choice**: in Settings › Theme, with a color wheel, six ready-made colors or a hex code.
 - **Automatic updates**: the overlay checks GitHub every 6 hours and installs new versions by itself (never during a game), then restarts and tells you with a notification. The exe is verified (SHA-256) before it replaces the one in use. In Settings › "Updates" you can also pick "Notify only" (an "Update to vX.Y.Z" button in the settings) or "Off".
 
 ## Download and usage

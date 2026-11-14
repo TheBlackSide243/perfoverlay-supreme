@@ -4,6 +4,8 @@
 #include <windowsx.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <string>
 // gdiplus.h usa min/max non qualificati, disattivati da NOMINMAX.
 namespace Gdiplus {
@@ -93,11 +95,9 @@ void PaintCombo(HWND h, HDC target) {
   const HWND focus = GetFocus();
   const bool focused = focus == h || (editable && focus == ci.hwndItem);
   const bool hover = GetPropW(h, kPropHover) != nullptr;
-  const COLORREF border = !enabled              ? RGB(48, 48, 56)
-                          : dropped || focused  ? col::Accent
-                          : hover               ? Blend(col::Line, col::Accent, 0.55f)
-                                                : col::Line;
-  FillRound(dc, rc, int(6 * s), enabled ? col::Input : RGB(32, 32, 38), border);
+  const bool active = enabled && (dropped || focused);
+  const COLORREF border = !enabled ? RGB(48, 48, 56) : active ? col::Accent : hover ? col::FieldHover : col::Field;
+  FillRound(dc, rc, int(8 * s), enabled ? col::Input : RGB(32, 32, 38), border, active ? 2.0f * s : 1.0f);
 
   if (!editable) {  // nella combobox modificabile il testo lo disegna il suo campo EDIT
     std::wstring text;
@@ -207,12 +207,14 @@ void PaintCheck(HWND h, HDC target) {
 
   const float s = Scale(h);
   const bool enabled = IsWindowEnabled(h);
-  const bool focus = GetFocus() == h;
+  // Focus visibile solo quando serve (navigazione da tastiera), come i controlli di Windows.
+  const bool focus = enabled && GetFocus() == h && !(SendMessageW(h, WM_QUERYUISTATE, 0, 0) & UISF_HIDEFOCUS);
   const int box = int(16 * s);
   const RECT br{0, (rc.bottom - box) / 2, box, (rc.bottom - box) / 2 + box};
   if (st->checked) {
-    FillRound(dc, br, int(4 * s), enabled ? col::Accent : Blend(col::Accent, col::Panel, 0.55f),
-              enabled ? col::Accent : Blend(col::Accent, col::Panel, 0.55f));
+    const COLORREF fill = enabled ? col::Accent : Blend(col::Accent, col::Panel, 0.55f);
+    // Casella spuntata con il focus: anello chiaro sopra il blu, che altrimenti non cambierebbe.
+    FillRound(dc, br, int(4 * s), fill, focus ? col::Text : fill, focus ? 2.0f * s : 1.0f);
     Gdiplus::Graphics g(dc);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     Gdiplus::Pen pen(Gp(col::AccentText), 2.2f * s);
@@ -224,7 +226,8 @@ void PaintCheck(HWND h, HDC target) {
                                    {br.left + 12.0f * s, br.top + 5.0f * s}};
     g.DrawLines(&pen, pts, 3);
   } else {
-    FillRound(dc, br, int(4 * s), col::Input, (st->hover || focus) && enabled ? col::Accent : RGB(88, 88, 100));
+    const COLORREF border = !enabled ? RGB(48, 48, 56) : focus ? col::Accent : st->hover ? col::FieldHover : col::Field;
+    FillRound(dc, br, int(4 * s), col::Input, border, focus ? 2.0f * s : 1.0f);
   }
 
   wchar_t text[256];
@@ -338,9 +341,55 @@ void Shutdown() {
   g_gdiplus = 0;
 }
 
+bool IsHovered(HWND btn) { return GetPropW(btn, kPropHover) != nullptr; }
+
 COLORREF Blend(COLORREF a, COLORREF b, float t) {
   auto mix = [t](int x, int y) { return BYTE(x + (y - x) * t + 0.5f); };
   return RGB(mix(GetRValue(a), GetRValue(b)), mix(GetGValue(a), GetGValue(b)), mix(GetBValue(a), GetBValue(b)));
+}
+
+namespace {
+float Luminance(COLORREF c) {
+  auto ch = [](BYTE v) {
+    const float s = v / 255.0f;
+    return s <= 0.03928f ? s / 12.92f : std::pow((s + 0.055f) / 1.055f, 2.4f);
+  };
+  return 0.2126f * ch(GetRValue(c)) + 0.7152f * ch(GetGValue(c)) + 0.0722f * ch(GetBValue(c));
+}
+}  // namespace
+
+float Contrast(COLORREF a, COLORREF b) {
+  const float la = Luminance(a), lb = Luminance(b);
+  return (std::max(la, lb) + 0.05f) / (std::min(la, lb) + 0.05f);
+}
+
+void SetAccent(COLORREF accent) {
+  // L'accento si usa anche per titoli e bordi di focus: sui pannelli deve leggersi come testo.
+  for (int i = 0; i < 20 && Contrast(accent, col::Panel) < 4.5f; ++i) accent = Blend(accent, RGB(255, 255, 255), 0.08f);
+  col::Accent = accent;
+  col::AccentHover = Blend(accent, RGB(255, 255, 255), 0.25f);
+  // Testo sui pulsanti d'accento: quasi nero se l'accento è chiaro, bianco se è scuro.
+  const COLORREF dark = Blend(accent, RGB(0, 0, 0), 0.88f);
+  col::AccentText = Contrast(dark, accent) >= Contrast(RGB(255, 255, 255), accent) ? dark : RGB(255, 255, 255);
+}
+
+bool ParseHexColor(const std::string& s, COLORREF& out) {
+  if (s.size() != 7 || s[0] != '#') return false;
+  unsigned v = 0;
+  for (size_t i = 1; i < 7; ++i) {
+    const char c = s[i];
+    const int d = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+    if (d < 0) return false;
+    v = v * 16 + unsigned(d);
+  }
+  out = RGB((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
+  return true;
+}
+
+std::string HexColor(COLORREF c) {
+  char buf[8];
+  snprintf(buf, sizeof(buf), "#%02X%02X%02X", GetRValue(c), GetGValue(c), GetBValue(c));
+  return buf;
 }
 
 void FillRound(HDC dc, const RECT& r, int radius, COLORREF fill, COLORREF border, float borderWidth) {
@@ -418,14 +467,14 @@ void DrawButton(const DRAWITEMSTRUCT* dis, const COLORREF* swatch) {
     text = RGB(96, 96, 106);
   } else if (primary) {
     fill = pressed ? col::Accent : (hover ? col::AccentHover : col::Accent);
-    border = fill;
+    border = focus ? col::Text : fill;  // sul blu il focus è un bordo chiaro
     text = col::AccentText;
   } else {
     fill = pressed ? RGB(36, 36, 42) : (hover ? Blend(col::BtnBg, col::Accent, 0.12f) : col::BtnBg);
-    border = hover || focus ? col::Accent : col::BtnBorder;
+    border = focus ? col::Accent : hover ? col::FieldHover : col::BtnBorder;  // hover e focus distinti
     text = col::Text;
   }
-  FillRound(dc, r, int(6 * s), fill, border);
+  FillRound(dc, r, int(8 * s), fill, border, focus && !disabled ? 2.0f * s : 1.0f);
 
   wchar_t label[128];
   GetWindowTextW(h, label, 128);

@@ -412,7 +412,7 @@ void PickerRebuild() {
 void PickerPaint(HDC dc, const RECT&) {
   DrawTextAt(dc, P->title, SR({20, 8, 600, 36}), C.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP | DT_SINGLELINE);
   DrawTextAt(dc, P->hint, SR({21, 40, 560, 80}), C.font, ui::col::Sub, DT_LEFT | DT_TOP | DT_WORDBREAK);
-  ui::FillRound(dc, SR({580, 16, 880, 16 + kRowH}), S(6), ui::col::Input, P->searchFocus ? ui::col::Accent : ui::col::Line);
+  ui::FillRound(dc, SR({580, 16, 880, 16 + kRowH}), S(8), ui::col::Input, P->searchFocus ? ui::col::Accent : ui::col::Field);
   RECT border = SR({20, 88, 880, 560});
   InflateRect(&border, 1, 1);
   ui::FillRound(dc, border, S(2), ui::col::Line, ui::col::Line, 0);
@@ -676,8 +676,8 @@ void EditorPaint(HDC dc, const RECT&) {
              T(L"L'overlay compare su questi programmi. Quelli \"appresi\" li ha riconosciuti da solo (renderizzano e "
              L"usano molta GPU); gli esclusi non mostrano mai l'overlay."),
              SR({21, 40, 700, 80}), C.font, ui::col::Sub, DT_LEFT | DT_TOP | DT_WORDBREAK);
-  ui::FillRound(dc, SR({740, 16, 980, 16 + kRowH}), S(6), ui::col::Input,
-                G->focusedEdit == IDC_SEARCH ? ui::col::Accent : ui::col::Line);
+  ui::FillRound(dc, SR({740, 16, 980, 16 + kRowH}), S(8), ui::col::Input,
+                G->focusedEdit == IDC_SEARCH ? ui::col::Accent : ui::col::Field);
   RECT border = SR({20, 88, 720, 588});
   InflateRect(&border, 1, 1);
   ui::FillRound(dc, border, S(2), ui::col::Line, ui::col::Line, 0);
@@ -696,8 +696,8 @@ void EditorPaint(HDC dc, const RECT&) {
 
   DrawTextAt(dc, T(L"Solo se il titolo contiene"), SR({20, 604, 200, 632}), C.font, ui::col::Sub,
              DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-  ui::FillRound(dc, SR({204, 604, 520, 604 + kRowH}), S(6), ui::col::Input,
-                G->focusedEdit == IDC_TITLE ? ui::col::Accent : ui::col::Line);
+  ui::FillRound(dc, SR({204, 604, 520, 604 + kRowH}), S(8), ui::col::Input,
+                G->focusedEdit == IDC_TITLE ? ui::col::Accent : ui::col::Field);
   DrawTextAt(dc, T(L"(facoltativo)"), SR({528, 604, 740, 632}), C.font, ui::col::Disabled,
              DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }

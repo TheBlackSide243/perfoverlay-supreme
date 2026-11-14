@@ -209,6 +209,7 @@ struct GlobalConfig {
   bool checkUpdates = true;           // all'apertura delle impostazioni cerca una versione nuova su GitHub
   bool autoUpdate = true;             // l'overlay scarica e installa da solo le versioni nuove (mai durante un gioco)
   std::string language;               // "it" / "en"; vuoto = lingua di Windows
+  std::string uiAccent;               // colore d'accento delle impostazioni "#RRGGBB"; vuoto = blu predefinito
 };
 
 struct GameList {

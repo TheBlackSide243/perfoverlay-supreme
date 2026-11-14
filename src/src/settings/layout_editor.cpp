@@ -1012,7 +1012,7 @@ void PaintEditor(HDC dc, const RECT& client) {
   DrawTextAt(dc, T(L"Passo"), SR({1254, 761, 1356, 789}), E->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
 
   for (const auto& [id, r] : E->frames)
-    ui::FillRound(dc, SR(r), S(6), ui::col::Input, E->focusedEdit == id ? ui::col::Accent : ui::col::Line);
+    ui::FillRound(dc, SR(r), S(8), ui::col::Input, E->focusedEdit == id ? ui::col::Accent : ui::col::Field);
 }
 
 int ReadInt(int id, int fallback) {

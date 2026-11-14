@@ -23,6 +23,7 @@
 #include "common/rtss_preset.h"
 #include "common/util.h"
 #include "common/winutil.h"
+#include "settings/color_wheel.h"
 #include "settings/gallery.h"
 #include "settings/games_editor.h"
 #include "settings/layout_editor.h"
@@ -84,6 +85,11 @@ enum : int {
   IDC_LANG,
   IDC_UPDATE,
   IDC_CHECKUPDATES,
+  IDC_ACCENT_RESET,
+  IDC_ACCENT_HEX,
+  IDC_ACCENT_WHEEL,
+  IDC_ACCENT_BASE = 1400,  // + indice colore predefinito dell'interfaccia
+  IDC_NAV_BASE = 1500,     // + indice pagina della barra laterale
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
 };
 
@@ -100,6 +106,32 @@ constexpr const wchar_t* kLangNames[] = {L"Italiano", L"English"};
 const wchar_t* const kOutOfGameNames[] = {T(L"Nascondi"), T(L"Profilo selezionato sul desktop")};
 // Aggiornamenti: 0 = installati dall'overlay da soli, 1 = solo il pulsante nelle impostazioni, 2 = nessun controllo.
 const wchar_t* const kUpdateNames[] = {T(L"Automatici"), T(L"Solo avviso"), T(L"Disattivati")};
+// Colori d'accento pronti per l'interfaccia (il primo è il predefinito); la ruota colori fa il resto.
+struct AccentPreset {
+  const wchar_t* name;
+  COLORREF color;
+};
+const AccentPreset kAccentPresets[] = {{T(L"Blu"), ui::col::DefaultAccent}, {T(L"Ciano"), RGB(34, 211, 238)},
+                                       {T(L"Verde"), RGB(16, 217, 138)},    {T(L"Rosso"), RGB(255, 90, 106)},
+                                       {T(L"Ambra"), RGB(250, 204, 21)},    {T(L"Rosa"), RGB(244, 114, 182)}};
+constexpr int kAccentCount = int(std::size(kAccentPresets));
+
+// Pagine della barra laterale. Le icone sono glifi di Segoe Fluent Icons / Segoe MDL2 Assets (font di Windows).
+struct PageInfo {
+  const wchar_t* name;
+  const wchar_t* glyph;
+  const wchar_t* subtitle;  // nullptr = descrizione legata al profilo selezionato
+};
+const PageInfo kPages[] = {
+    {T(L"Profili"), L"", T(L"Un profilo per gioco; \"default\" vale per tutti gli altri.")},
+    {T(L"Aspetto overlay"), L"", nullptr},
+    {T(L"Elementi e sensori"), L"", nullptr},
+    {L"Hotkey", L"", T(L"Scorciatoie da tastiera, attive anche durante il gioco.")},
+    {T(L"Generali"), L"", T(L"Comportamento dell'overlay, lingua, avvio e aggiornamenti.")},
+    {T(L"Tema"), L"", T(L"Colore d'accento di questa finestra.")}};
+constexpr int kPageCount = int(std::size(kPages));
+constexpr int kSideW = 224;  // larghezza della barra laterale (a 96 DPI)
+constexpr COLORREF kSidebar = RGB(20, 20, 23);
 
 constexpr int kColorCount = 7;
 const wchar_t* const kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", T(L"Batteria"), T(L"Testo"), T(L"Sfondo")};
@@ -135,12 +167,16 @@ struct State {
   HWND wnd = nullptr;
   HFONT font = nullptr, fontBold = nullptr, fontTitle = nullptr, fontSection = nullptr;
   HFONT fontDlg = nullptr;  // per le finestre secondarie, che hanno dimensioni fisse ai DPI di sistema
-  HBRUSH brBg = nullptr, brPanel = nullptr, brInput = nullptr, brInputOff = nullptr;
+  HFONT fontIcon = nullptr;  // glifi delle icone della barra laterale
+  HBRUSH brBg = nullptr, brPanel = nullptr, brInput = nullptr, brInputOff = nullptr, brSide = nullptr;
   HICON icon = nullptr;
   int dpi = 96;      // scala effettiva dell'interfaccia (DPI del monitor × ingrandimento della finestra)
   int baseDpi = 96;  // DPI del monitor su cui si trova la finestra
   int ox = 0, oy = 0;  // margine per centrare il contenuto quando la finestra ha proporzioni diverse
   std::vector<std::pair<HWND, RECT>> layout;  // controlli e posizione a 96 DPI, per ridisporli
+  std::vector<int> layoutPage;                // pagina di ogni controllo di layout (-1 = sempre visibile)
+  int page = 0;                               // pagina mostrata
+  bool syncingAccent = false;                 // aggiornamento di ruota/codice in corso (niente rimbalzi)
   GlobalConfig cfg;
   GameList games;
   std::vector<Profile> profiles;
@@ -155,7 +191,7 @@ struct State {
 State g;
 
 constexpr COLORREF kInputOff = RGB(32, 32, 38);  // campo disattivato
-constexpr int kClientW = 1000, kClientH = 806;
+constexpr int kClientW = 1000, kClientH = 640;
 constexpr int kRowH = 28;
 constexpr UINT_PTR kTimerMonitor = 1;
 constexpr UINT kMsgUpdateFound = WM_APP + 20;     // lParam = UpdateInfo* (dal thread di controllo)
@@ -165,15 +201,19 @@ constexpr UINT kMsgUpdateDownloaded = WM_APP + 21;  // wParam = riuscito, lParam
 struct PanelItem {
   RECT r;
   const wchar_t* title;
+  int page;
 };
 struct LabelItem {
   RECT r;
   const wchar_t* text;
+  int page;
 };
 struct FrameItem {
   int id;
   RECT r;
+  int page;
 };
+int g_buildPage = -1;  // pagina a cui appartengono i controlli creati in BuildUi
 std::vector<PanelItem> g_panels;
 std::vector<LabelItem> g_labels;
 std::vector<FrameItem> g_frames;
@@ -193,13 +233,16 @@ HWND Make(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, in
                            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), g.inst, nullptr);
   SendMessageW(c, WM_SETFONT, reinterpret_cast<WPARAM>(g.font), TRUE);
   g.layout.push_back({c, {x, y, x + w, y + h}});
+  g.layoutPage.push_back(g_buildPage);
   return c;
 }
-void Panel(const wchar_t* title, int x, int y, int w, int h) { g_panels.push_back({{x, y, x + w, y + h}, title}); }
-void Label(const wchar_t* t, int x, int y, int w) { g_labels.push_back({{x, y, x + w, y + kRowH}, t}); }
+void Panel(const wchar_t* title, int x, int y, int w, int h) {
+  g_panels.push_back({{x, y, x + w, y + h}, title, g_buildPage});
+}
+void Label(const wchar_t* t, int x, int y, int w) { g_labels.push_back({{x, y, x + w, y + kRowH}, t, g_buildPage}); }
 // Campo di testo senza bordo: la cornice arrotondata la disegna la finestra (g_frames).
 void Edit(int id, int x, int y, int w, const wchar_t* cue = nullptr) {
-  g_frames.push_back({id, {x, y, x + w, y + kRowH}});
+  g_frames.push_back({id, {x, y, x + w, y + kRowH}, g_buildPage});
   HWND e = Make(L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, x + 9, y + 6, w - 18, kRowH - 11, id);
   if (cue) SendMessageW(e, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(cue));
 }
@@ -244,7 +287,7 @@ int GetSel(int id) { return std::max(0, ComboBox_GetCurSel(Item(id))); }
 void SetSel(int id, int i) { ComboBox_SetCurSel(Item(id), i); }
 
 // Riga di stato in basso: grigia per le informazioni, verde/rossa per l'esito del salvataggio.
-RECT StatusRect() { return SR({386, 756, 814, 788}); }
+RECT StatusRect() { return SR({248, 594, 812, 626}); }
 void Status(const std::wstring& s, COLORREF color = ui::col::Sub) {
   g.status = s;
   g.statusColor = color;
@@ -681,6 +724,43 @@ void OnPickColor(int i) {
   UpdateSwatch(i);
 }
 
+// ------------------------------------------------------------------ colore dell'interfaccia
+COLORREF CurrentAccent() {
+  COLORREF c = ui::col::DefaultAccent;
+  ui::ParseHexColor(g.cfg.uiAccent, c);
+  return c;
+}
+
+// Applica subito il colore a tutta la finestra; resta salvato con "Salva e applica".
+// La ruota e il campo del codice si allineano al nuovo colore, tranne quello da cui arriva.
+void ApplyAccent(COLORREF c, int fromId = 0) {
+  g.cfg.uiAccent = c == ui::col::DefaultAccent ? "" : ui::HexColor(c);
+  ui::SetAccent(c);
+  g.syncingAccent = true;
+  if (fromId != IDC_ACCENT_WHEEL) SendMessageW(Item(IDC_ACCENT_WHEEL), ui::kMsgWheelSetColor, c, 0);
+  if (fromId != IDC_ACCENT_HEX) SetUtf8(IDC_ACCENT_HEX, ui::HexColor(c));
+  g.syncingAccent = false;
+  RedrawWindow(g.wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+  Status(T(L"Colore applicato. Premi \"Salva e applica\" per tenerlo."), ui::col::Accent);
+}
+
+// Pallino di un colore pronto: anello chiaro se è quello in uso, anello d'accento con il focus da tastiera.
+void DrawAccentChip(const DRAWITEMSTRUCT* d, COLORREF color) {
+  HDC dc = d->hDC;
+  const RECT& r = d->rcItem;
+  FillRect(dc, &r, g.brPanel);
+  const bool selected = color == CurrentAccent();
+  const bool focus = (d->itemState & ODS_FOCUS) && !(d->itemState & ODS_NOFOCUSRECT);
+  const int cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+  const int outer = std::min(r.right - r.left, r.bottom - r.top) / 2;
+  if (selected || focus) {
+    const RECT ring{cx - outer, cy - outer, cx + outer, cy + outer};
+    ui::StrokeRound(dc, ring, outer, focus ? ui::col::Accent : ui::col::Text, float(S(2)));
+  }
+  const int rad = outer - S(5);
+  ui::FillCircle(dc, cx, cy, rad, color, color);
+}
+
 void OnSave() {
   if (!UiToProfile() || !UiToGlobal()) return;
   RefreshList();
@@ -878,101 +958,152 @@ void HotkeyField(int id, int x, int y) {
 }
 
 // ------------------------------------------------------------------ costruzione UI
+// Barra laterale a sinistra (sezioni), a destra una sezione alla volta divisa in riquadri.
+// Coordinate a 96 DPI; ogni controllo appartiene alla pagina impostata in g_buildPage.
 void BuildUi() {
-  // Colonna 1: profili
-  Panel(T(L"PROFILI"), 20, 104, 240, 240);
+  // Sempre visibili: sezioni, aggiornamento, avvio overlay, salvataggio.
+  g_buildPage = -1;
+  for (int i = 0; i < kPageCount; ++i) Button(IDC_NAV_BASE + i, kPages[i].name, 12, 76 + i * 42, 200, 38, kSidebar);
+  Button(IDC_UPDATE, L"", 16, 506, 192, 34, kSidebar, true);
+  ShowWindow(Item(IDC_UPDATE), SW_HIDE);
+  Button(IDC_LAUNCH, T(L"Avvia overlay"), 16, 550, 192, 32, kSidebar);
+  Button(IDC_SAVE, T(L"Salva e applica"), 826, 592, 150, 34, ui::col::Bg, true);
+
+  // 0 · Profili
+  g_buildPage = 0;
+  Panel(T(L"Profili"), 248, 116, 260, 410);
   HWND list = Make(L"LISTBOX", L"",
                    WS_TABSTOP | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS,
-                   28, 112, 224, 224, IDC_LIST);
+                   256, 124, 244, 340, IDC_LIST);
   ApplyDarkControlTheme(list, L"DarkMode_Explorer");
+  Button(IDC_NEW, T(L"Nuovo"), 256, 478, 118, 32, ui::col::Panel);
+  Button(IDC_DELETE, T(L"Elimina"), 382, 478, 118, 32, ui::col::Panel);
+  Panel(T(L"Profilo selezionato"), 528, 116, 448, 80);
+  Label(T(L"Nome"), 544, 128, 110);
+  Edit(IDC_NAME, 660, 128, 300);
+  Label(T(L"Giochi"), 544, 162, 110);
+  Edit(IDC_MATCH, 660, 162, 300, T(L"gioco.exe; altro.exe|Titolo"));
+  Panel(T(L"Overlay pronti e preset RTSS"), 528, 240, 448, 64);
+  Button(IDC_STORE, T(L"Store overlay..."), 544, 256, 200, 32, ui::col::Panel, true);
+  Button(IDC_IMPORT_RTSS, T(L"Importa RTSS..."), 756, 256, 204, 32, ui::col::Panel);
+  Panel(T(L"Backup e condivisione"), 528, 348, 448, 134);
   const std::pair<int, const wchar_t*> btns[] = {
-      {IDC_NEW, T(L"Nuovo")},                    {IDC_DELETE, T(L"Elimina")},
-      {IDC_EXPORT_ONE, T(L"Esporta profilo")},   {IDC_IMPORT_ONE, T(L"Importa profilo")},
-      {IDC_EXPORT_ALL, T(L"Esporta tutto")},     {IDC_IMPORT_ALL, T(L"Importa tutto")},
-      {IDC_BACKUP_CFG, T(L"Backup config")},     {IDC_RESTORE_CFG, T(L"Ripristina config")}};
+      {IDC_EXPORT_ONE, T(L"Esporta profilo")}, {IDC_IMPORT_ONE, T(L"Importa profilo")},
+      {IDC_EXPORT_ALL, T(L"Esporta tutto")},   {IDC_IMPORT_ALL, T(L"Importa tutto")},
+      {IDC_BACKUP_CFG, T(L"Backup config")},   {IDC_RESTORE_CFG, T(L"Ripristina config")}};
   for (size_t i = 0; i < std::size(btns); ++i)
-    Button(btns[i].first, btns[i].second, 20 + int(i % 2) * 125, 356 + int(i / 2) * 36, 115);
-  Button(IDC_IMPORT_RTSS, T(L"Importa RTSS..."), 20, 500, 115);
-  Button(IDC_STORE, T(L"Store overlay..."), 145, 500, 115, 30, ui::col::Bg, true);
+    Button(btns[i].first, btns[i].second, 544 + int(i % 2) * 212, 364 + int(i / 2) * 38, 204, 32, ui::col::Panel);
 
-  // Colonna 2: profilo selezionato
-  Panel(T(L"PROFILO SELEZIONATO"), 280, 104, 400, 440);
-  constexpr int lx = 296, lw = 130, cx = 430, cw = 234;
-  auto row = [](int i) { return 118 + i * 34; };
-  Label(T(L"Nome"), lx, row(0), lw);
-  Edit(IDC_NAME, cx, row(0), cw);
-  Label(T(L"Giochi"), lx, row(1), lw);
-  Edit(IDC_MATCH, cx, row(1), cw, T(L"gioco.exe; altro.exe|Titolo"));
-  Label(L"Layout", lx, row(2), lw);
-  Combo(IDC_LAYOUT, cx, row(2), 150, kLayoutNames);
-  Button(IDC_EDITOR, L"Editor...", cx + 156, row(2), cw - 156, kRowH, ui::col::Panel);
-  Label(T(L"Posizione"), lx, row(3), lw);
-  Combo(IDC_POSITION, cx, row(3), cw, kPositionNames);
-  Label(T(L"X / Y (px a 1080p)"), lx, row(4), lw);
-  Edit(IDC_X, cx, row(4), 112, L"X");
-  Edit(IDC_Y, cx + 122, row(4), 112, L"Y");
-  Label(L"Font", lx, row(5), lw);
+  // 1 · Aspetto overlay (profilo selezionato)
+  g_buildPage = 1;
+  constexpr int lx = 264, lw = 130, cx = 398;
+  auto row = [](int i) { return 128 + i * 34; };
+  Panel(T(L"Layout e posizione"), 248, 116, 728, 148);
+  Label(L"Layout", lx, row(0), lw);
+  Combo(IDC_LAYOUT, cx, row(0), 220, kLayoutNames);
+  Button(IDC_EDITOR, L"Editor...", cx + 228, row(0), 110, kRowH, ui::col::Panel);
+  Label(T(L"Posizione"), lx, row(1), lw);
+  Combo(IDC_POSITION, cx, row(1), 220, kPositionNames);
+  Label(T(L"X / Y (px a 1080p)"), lx, row(2), lw);
+  Edit(IDC_X, cx, row(2), 105, L"X");
+  Edit(IDC_Y, cx + 115, row(2), 105, L"Y");
+  Label(T(L"Margine bordo (px)"), lx, row(3), lw);
+  Edit(IDC_MARGIN, cx, row(3), 80);
+  auto row2 = [](int i) { return 324 + i * 34; };
+  Panel(T(L"Testo, sfondo e soglie FPS"), 248, 312, 728, 114);
+  Label(L"Font", lx, row2(0), lw);
   static const wchar_t* const kFonts[] = {L"sans", L"mono", L"Segoe UI", L"Consolas", L"Bahnschrift"};
-  Combo(IDC_FONT, cx, row(5), cw, kFonts, true);
-  Label(T(L"Dimensione (1080p)"), lx, row(6), lw);
-  Edit(IDC_FONTSIZE, cx, row(6), 70);
-  Check(IDC_BOLD, T(L"Grassetto"), cx + 84, row(6) + 2, 150);
-  Label(T(L"Opacità sfondo %"), lx, row(7), lw);
-  Edit(IDC_OPACITY, cx, row(7), 70);
-  Check(IDC_AUTOSCALE, T(L"Scala con risoluzione"), cx + 84, row(7) + 2, 160);
-  Label(T(L"Margine bordo (px)"), lx, row(8), lw);
-  Edit(IDC_MARGIN, cx, row(8), 70);
-  Label(T(L"FPS rosso sotto"), lx, row(9), lw);
-  Edit(IDC_FPSRED, cx, row(9), 70);
-  Label(T(L"FPS giallo sotto"), lx, row(10), lw);
-  Edit(IDC_FPSYELLOW, cx, row(10), 70);
-  Button(IDC_SENSORS, T(L"Sensori di sistema (temperature, ventole, dischi...)"), lx, row(11) + 6, cx + cw - lx,
-         32, ui::col::Panel);
+  Combo(IDC_FONT, cx, row2(0), 220, kFonts, true);
+  Label(T(L"Dimensione (1080p)"), lx, row2(1), lw);
+  Edit(IDC_FONTSIZE, cx, row2(1), 80);
+  Check(IDC_BOLD, T(L"Grassetto"), cx + 96, row2(1) + 2, 170);
+  Label(T(L"Opacità sfondo %"), lx, row2(2), lw);
+  Edit(IDC_OPACITY, cx, row2(2), 80);
+  Check(IDC_AUTOSCALE, T(L"Scala con risoluzione"), cx + 96, row2(2) + 2, 180);
+  Label(T(L"FPS rosso sotto"), 690, row2(0), 140);
+  Edit(IDC_FPSRED, 836, row2(0), 80);
+  Label(T(L"FPS giallo sotto"), 690, row2(1), 140);
+  Edit(IDC_FPSYELLOW, 836, row2(1), 80);
 
-  // Colonna 3: elementi visibili e colori
-  Panel(T(L"ELEMENTI VISIBILI"), 700, 104, 280, 248);
-  for (int i = 0; i < kShowCount; ++i) Check(IDC_SHOW + i, kShowNames[i], 716, 116 + i * 26, 250);
-  Panel(T(L"COLORI"), 700, 390, 280, 154);
+  // 2 · Elementi e sensori (profilo selezionato)
+  g_buildPage = 2;
+  Panel(T(L"Elementi visibili"), 248, 116, 350, 266);
+  for (int i = 0; i < kShowCount; ++i) Check(IDC_SHOW + i, kShowNames[i], 264, 126 + i * 28, 320);
+  Panel(T(L"Colori overlay"), 618, 116, 358, 160);
   for (int i = 0; i < kColorCount; ++i)
-    Button(IDC_COLOR_BTN + i, kColorNames[i], 712 + (i % 2) * 134, 402 + (i / 2) * 34, 122, 28, ui::col::Panel);
+    Button(IDC_COLOR_BTN + i, kColorNames[i], 634 + (i % 2) * 166, 128 + (i / 2) * 36, 154, 30, ui::col::Panel);
+  Panel(T(L"Sensori di sistema"), 618, 320, 358, 64);
+  Button(IDC_SENSORS, T(L"Scegli i sensori..."), 634, 336, 326, 32, ui::col::Panel);
 
-  // Riga in basso: impostazioni globali
-  Panel(T(L"IMPOSTAZIONI GLOBALI"), 20, 584, 960, 156);
-  auto grow = [](int i) { return 598 + i * 34; };
-  Label(L"Refresh (ms)", 36, grow(0), 120);
-  Edit(IDC_REFRESH, 160, grow(0), 80);
-  Label(T(L"Fuori dal gioco"), 36, grow(1), 120);
-  Combo(IDC_OUTOFGAME, 160, grow(1), 156, kOutOfGameNames);
-  Label(T(L"Profilo forzato"), 36, grow(2), 120);
-  Make(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, 160, grow(2) + 1, 156, 240, IDC_FORCED);
+  // 3 · Hotkey
+  g_buildPage = 3;
+  Panel(T(L"Scorciatoie da tastiera"), 248, 116, 728, 182);
+  Label(T(L"Mostra / nascondi"), 264, row(0), 200);
+  HotkeyField(IDC_HK_TOGGLE, 470, row(0));
+  Label(T(L"Cambia profilo"), 264, row(1), 200);
+  HotkeyField(IDC_HK_CYCLE, 470, row(1));
+  Label(T(L"Solo FPS"), 264, row(2), 200);
+  HotkeyField(IDC_HK_FPSONLY, 470, row(2));
+  Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 264, row(3) + 2, 300);
+  Label(T(L"Premi \"Cambia\" e poi la combinazione: Esc annulla, Canc la rimuove."), 264, row(4), 690);
+
+  // 4 · Generali
+  g_buildPage = 4;
+  constexpr int gx = 420;
+  Panel(L"Overlay", 248, 116, 728, 148);
+  Label(L"Refresh (ms)", lx, row(0), 150);
+  Edit(IDC_REFRESH, gx, row(0), 80);
+  Label(T(L"Fuori dal gioco"), lx, row(1), 150);
+  Combo(IDC_OUTOFGAME, gx, row(1), 260, kOutOfGameNames);
+  Label(T(L"Profilo forzato"), lx, row(2), 150);
+  Make(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, gx, row(2) + 1, 260, 240, IDC_FORCED);
   ApplyDarkControlTheme(Item(IDC_FORCED), L"DarkMode_CFD");
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
   SendMessageW(Item(IDC_FORCED), CB_SETITEMHEIGHT, 0, S(22));
   ui::MakeCombo(Item(IDC_FORCED), ui::col::Panel);
-  Label(L"Lingua / Language", 36, grow(3), 120);
-  Combo(IDC_LANG, 160, grow(3), 156, kLangNames);
-  Label(T(L"Mostra / nascondi"), 344, grow(0), 136);
-  HotkeyField(IDC_HK_TOGGLE, 484, grow(0));
-  Label(T(L"Cambia profilo"), 344, grow(1), 136);
-  HotkeyField(IDC_HK_CYCLE, 484, grow(1));
-  Label(T(L"Solo FPS"), 344, grow(2), 136);
-  HotkeyField(IDC_HK_FPSONLY, 484, grow(2));
-  Check(IDC_FSHINT, T(L"Avvisa se un gioco usa il fullscreen esclusivo"), 344, grow(3) + 2, 310);
-  Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 664, grow(0) + 2, 300);
-  Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), 664, grow(1) + 2, 300);
-  Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), 664, grow(2) + 2, 300);
-  Label(T(L"Aggiornamenti"), 664, grow(3), 120);
-  Combo(IDC_CHECKUPDATES, 788, grow(3), 176, kUpdateNames);
+  Label(L"Lingua / Language", lx, row(3), 150);
+  Combo(IDC_LANG, gx, row(3), 260, kLangNames);
+  Panel(T(L"Giochi e avvio"), 248, 312, 728, 114);
+  Check(IDC_AUTOLEARN, T(L"Rileva nuovi giochi automaticamente"), lx, row2(0) + 2, 440);
+  Check(IDC_FSHINT, T(L"Avvisa se un gioco usa il fullscreen esclusivo"), lx, row2(1) + 2, 440);
+  Check(IDC_AUTOSTART, T(L"Avvia PerfOverlay Supreme con Windows"), lx, row2(2) + 2, 440);
+  Button(IDC_EDIT_GAMES, T(L"Lista giochi..."), 760, row2(0), 200, 32, ui::col::Panel);
+  Button(IDC_OPEN_FOLDER, T(L"Apri cartella dati"), 760, row2(0) + 40, 200, 32, ui::col::Panel);
+  Panel(T(L"Aggiornamenti"), 248, 474, 728, 52);
+  Label(T(L"Installazione"), lx, 486, 150);
+  Combo(IDC_CHECKUPDATES, gx, 486, 260, kUpdateNames);
 
-  // Barra inferiore
-  Button(IDC_EDIT_GAMES, T(L"Lista giochi..."), 20, 756, 176, 32);
-  Button(IDC_OPEN_FOLDER, T(L"Apri cartella dati"), 204, 756, 168, 32);
-  Button(IDC_SAVE, T(L"Salva e applica"), 830, 756, 150, 32, ui::col::Bg, true);
+  // 5 · Tema
+  g_buildPage = 5;
+  Panel(T(L"Colore dell'interfaccia"), 248, 116, 728, 300);
+  Make(ui::kColorWheelClass, L"", WS_TABSTOP, 272, 132, 268, 268, IDC_ACCENT_WHEEL);
+  Label(T(L"Colori pronti"), 572, 136, 300);
+  for (int i = 0; i < kAccentCount; ++i)
+    Button(IDC_ACCENT_BASE + i, kAccentPresets[i].name, 572 + i * 40, 168, 34, 34, ui::col::Panel);
+  Label(T(L"Codice"), 572, 222, 80);
+  Edit(IDC_ACCENT_HEX, 652, 222, 120, L"#RRGGBB");
+  SendMessageW(Item(IDC_ACCENT_HEX), EM_LIMITTEXT, 7, 0);
+  Button(IDC_ACCENT_RESET, T(L"Predefinito"), 572, 266, 140, 32, ui::col::Panel);
+  Label(T(L"Gira l'anello per la tonalità, trascina nel quadrato"), 572, 318, 390);
+  Label(T(L"per chiarezza e intensità. Da tastiera: frecce,"), 572, 340, 390);
+  Label(T(L"PagSu e PagGiù. Il colore si applica subito."), 572, 362, 390);
+  g_buildPage = -1;
+}
 
-  // Intestazione: avvio dell'overlay se non è in esecuzione
-  Button(IDC_LAUNCH, T(L"Avvia overlay"), 850, 26, 130, 30);
-  Button(IDC_UPDATE, L"", 600, 27, 150, 30, ui::col::Bg, true);
-  ShowWindow(Item(IDC_UPDATE), SW_HIDE);
+// Mostra una sezione: i controlli delle altre pagine si nascondono (e escono dall'ordine del Tab).
+void ShowPage(int p) {
+  if (p < 0 || p >= kPageCount) return;
+  g.page = p;
+  const HWND focus = GetFocus();
+  for (size_t i = 0; i < g.layout.size(); ++i) {
+    const int pg = g.layoutPage[i];
+    if (pg < 0) continue;
+    const HWND c = g.layout[i].first;
+    if (pg != p && (c == focus || IsChild(c, focus))) SetFocus(Item(IDC_NAV_BASE + p));
+    ShowWindow(c, pg == p ? SW_SHOWNA : SW_HIDE);
+  }
+  for (int i = 0; i < kPageCount; ++i) InvalidateRect(Item(IDC_NAV_BASE + i), nullptr, FALSE);
+  InvalidateRect(g.wnd, nullptr, FALSE);
 }
 
 // ------------------------------------------------------------------ disegno
@@ -984,35 +1115,18 @@ void DrawTextAt(HDC dc, const std::wstring& t, RECT r, HFONT f, COLORREF c, UINT
 
 std::wstring StatusPillText() { return g.monitorRunning ? T(L"Overlay in esecuzione") : T(L"Overlay non avviato"); }
 
-RECT StatusPillRect(HDC dc) {
-  const int right = g.monitorRunning ? 980 : 838;  // senza overlay a destra c'è "Avvia overlay"
-  const std::wstring state = StatusPillText();
-  HGDIOBJ old = SelectObject(dc, g.fontBold);
-  SIZE ts{};
-  GetTextExtentPoint32W(dc, state.c_str(), int(state.size()), &ts);
-  SelectObject(dc, old);
-  return {S(right) - ts.cx - S(44), S(27), S(right), S(57)};
-}
+// Badge dello stato in fondo alla barra laterale.
+RECT StatusPillRect() { return SR({16, 596, 208, 626}); }
 
-// Il pulsante "Aggiorna a vX" sta subito a sinistra del badge di stato.
+// Il pulsante "Aggiorna a vX" sta in fondo alla barra laterale; compare solo se c'è una versione nuova.
 void PlaceUpdateButton() {
   HWND b = Item(IDC_UPDATE);
+  if (!b) return;
   if (!g.update) {
     ShowWindow(b, SW_HIDE);
     return;
   }
-  const std::wstring text = TF(L"Aggiorna a v{}", ToWide(g.update->version));
-  SetWindowTextW(b, text.c_str());
-  HDC dc = GetDC(g.wnd);
-  const RECT pill = StatusPillRect(dc);
-  HGDIOBJ old = SelectObject(dc, g.font);
-  SIZE ts{};
-  GetTextExtentPoint32W(dc, text.c_str(), int(text.size()), &ts);
-  SelectObject(dc, old);
-  ReleaseDC(g.wnd, dc);
-  const int w = ts.cx + S(32);
-  SetWindowPos(b, nullptr, g.ox + pill.left - S(10) - w, g.oy + pill.top, w, pill.bottom - pill.top,
-               SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowTextW(b, TF(L"Aggiorna a v{}", ToWide(g.update->version)).c_str());
   ShowWindow(b, SW_SHOW);
 }
 
@@ -1077,44 +1191,81 @@ void OnUpdateDownloaded(bool ok, std::wstring error) {
 
 void Paint(HDC dc, const RECT& client) {
   FillRect(dc, &client, g.brBg);
+  // Barra laterale a tutta altezza, con una riga di separazione.
+  const RECT side{0, 0, g.ox + S(kSideW), client.bottom};
+  FillRect(dc, &side, g.brSide);
+  HBRUSH line = CreateSolidBrush(ui::col::Line);
+  const RECT sep{side.right - 1, 0, side.right, client.bottom};
+  FillRect(dc, &sep, line);
+  DeleteObject(line);
   SetBkMode(dc, TRANSPARENT);
   SetViewportOrgEx(dc, g.ox, g.oy, nullptr);  // contenuto centrato nella finestra
 
-  // Intestazione (come Decky Manager e SteamImporter): icona, titolo d'accento, sottotitolo.
-  DrawIconEx(dc, S(20), S(18), g.icon, S(44), S(44), 0, nullptr, DI_NORMAL);
-  DrawTextAt(dc, kAppTitleUpper, SR({76, 14, 600, 46}), g.fontTitle, ui::col::Accent, DT_LEFT | DT_TOP);
-  DrawTextAt(dc, T(L"Overlay prestazioni per i giochi  ·  profili per gioco  ·  export / import"),
-             SR({77, 46, 700, 68}), g.font, ui::col::Sub, DT_LEFT | DT_TOP);
-  // Versione accanto al titolo.
-  SelectObject(dc, g.fontTitle);
-  SIZE tw{};
-  GetTextExtentPoint32W(dc, kAppTitleUpper, int(wcslen(kAppTitleUpper)), &tw);
-  DrawTextAt(dc, L"v" + ToWide(AppVersion()), {S(76) + tw.cx + S(10), S(14), S(600), S(42)}, g.font, ui::col::Sub,
-             DT_LEFT | DT_BOTTOM);
+  // Marchio: icona, nome con "Supreme" nel colore d'accento, versione.
+  DrawIconEx(dc, S(18), S(20), g.icon, S(32), S(32), 0, nullptr, DI_NORMAL);
+  SelectObject(dc, g.fontSection);
+  SIZE nw{};
+  GetTextExtentPoint32W(dc, L"PerfOverlay ", 12, &nw);
+  DrawTextAt(dc, L"PerfOverlay ", SR({60, 16, 220, 38}), g.fontSection, ui::col::Text, DT_LEFT | DT_BOTTOM);
+  DrawTextAt(dc, L"Supreme", {S(60) + nw.cx, S(16), S(220), S(38)}, g.fontSection, ui::col::Accent, DT_LEFT | DT_BOTTOM);
+  DrawTextAt(dc, L"v" + ToWide(AppVersion()), SR({60, 38, 220, 56}), g.font, ui::col::Sub, DT_LEFT | DT_TOP);
 
   // Stato dell'overlay: badge arrotondato con pallino, verde se in esecuzione.
   const std::wstring state = StatusPillText();
   const COLORREF stateColor = g.monitorRunning ? ui::col::Good : ui::col::Bad;
-  const RECT pill = StatusPillRect(dc);
-  ui::FillRound(dc, pill, S(15), ui::Blend(ui::col::Bg, stateColor, 0.12f), ui::Blend(ui::col::Bg, stateColor, 0.45f));
+  const RECT pill = StatusPillRect();
+  ui::FillRound(dc, pill, S(15), ui::Blend(kSidebar, stateColor, 0.12f), ui::Blend(kSidebar, stateColor, 0.45f));
   ui::FillCircle(dc, pill.left + S(17), (pill.top + pill.bottom) / 2, S(4), stateColor, stateColor);
-  DrawTextAt(dc, state, {pill.left + S(29), pill.top, pill.right - S(12), pill.bottom}, g.fontBold, stateColor,
-             DT_LEFT | DT_VCENTER);
+  DrawTextAt(dc, state, {pill.left + S(29), pill.top, pill.right - S(10), pill.bottom}, g.fontBold, stateColor,
+             DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
+
+  // Intestazione della sezione.
+  const PageInfo& pg = kPages[g.page];
+  DrawTextAt(dc, pg.name, SR({248, 18, 976, 52}), g.fontTitle, ui::col::Text, DT_LEFT | DT_VCENTER);
+  std::wstring sub = pg.subtitle ? pg.subtitle : L"";
+  if (!pg.subtitle && g.cur >= 0 && size_t(g.cur) < g.profiles.size())
+    sub = TF(L"Valgono per il profilo \"{}\": lo scegli nella sezione Profili.", ToWide(g.profiles[size_t(g.cur)].name));
+  DrawTextAt(dc, sub, SR({249, 54, 976, 76}), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
 
   for (const auto& p : g_panels) {
+    if (p.page != g.page) continue;
     const RECT r = SR(p.r);
-    DrawTextAt(dc, p.title, {r.left + S(4), r.top - S(22), r.right, r.top - S(4)}, g.fontSection, ui::col::Sub,
+    DrawTextAt(dc, p.title, {r.left + S(4), r.top - S(24), r.right, r.top - S(4)}, g.fontSection, ui::col::Text,
                DT_LEFT | DT_BOTTOM);
-    ui::FillRound(dc, r, S(8), ui::col::Panel, ui::col::Line);
+    ui::FillRound(dc, r, S(12), ui::col::Panel, ui::col::Line);
   }
-  for (const auto& l : g_labels) DrawTextAt(dc, l.text, SR(l.r), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER);
+  for (const auto& l : g_labels)
+    if (l.page == g.page) DrawTextAt(dc, l.text, SR(l.r), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   for (const auto& f : g_frames) {
+    if (f.page != g.page) continue;
     const bool on = IsWindowEnabled(Item(f.id));
-    const COLORREF border = g.focusedEdit == f.id || g_capturing == f.id ? ui::col::Accent : ui::col::Line;
-    ui::FillRound(dc, SR(f.r), S(6), on ? ui::col::Input : kInputOff, on ? border : RGB(44, 44, 52));
+    const bool active = on && (g.focusedEdit == f.id || g_capturing == f.id);
+    ui::FillRound(dc, SR(f.r), S(8), on ? ui::col::Input : kInputOff,
+                  !on ? RGB(44, 44, 52) : active ? ui::col::Accent : ui::col::Field, active ? float(S(2)) : 1.0f);
   }
   DrawTextAt(dc, g.status, StatusRect(), g.font, g.statusColor, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
   SetViewportOrgEx(dc, 0, 0, nullptr);  // la copia del buffer sullo schermo usa coordinate della finestra
+}
+
+// Voce della barra laterale: icona e nome; la sezione aperta ha fondo chiaro e barretta d'accento.
+void DrawNavItem(const DRAWITEMSTRUCT* d, int i) {
+  HDC dc = d->hDC;
+  const RECT& r = d->rcItem;
+  FillRect(dc, &r, g.brSide);
+  const bool sel = i == g.page;
+  const bool hover = ui::IsHovered(d->hwndItem);
+  const bool focus = (d->itemState & ODS_FOCUS) && !(d->itemState & ODS_NOFOCUSRECT);
+  if (sel || hover) {
+    const COLORREF fill = sel ? RGB(38, 38, 46) : RGB(30, 30, 36);
+    ui::FillRound(dc, r, S(8), fill, fill, 0);
+  }
+  if (sel) ui::FillRound(dc, {r.left, r.top + S(9), r.left + S(3), r.bottom - S(9)}, S(2), ui::col::Accent, ui::col::Accent, 0);
+  if (focus) ui::StrokeRound(dc, r, S(8), ui::col::Accent, float(S(2)));
+  SetBkMode(dc, TRANSPARENT);
+  DrawTextAt(dc, kPages[i].glyph, {r.left + S(14), r.top, r.left + S(40), r.bottom}, g.fontIcon,
+             sel ? ui::col::Accent : ui::col::Sub, DT_LEFT | DT_VCENTER);
+  DrawTextAt(dc, kPages[i].name, {r.left + S(46), r.top, r.right - S(8), r.bottom}, sel ? g.fontBold : g.font,
+             sel ? ui::col::Text : RGB(200, 200, 210), DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
 }
 
 void DrawProfileItem(const DRAWITEMSTRUCT* d) {
@@ -1149,7 +1300,7 @@ void UpdateMonitorState() {
   g.monitorRunning = running;
   ShowWindow(Item(IDC_LAUNCH), running ? SW_HIDE : SW_SHOW);
   PlaceUpdateButton();
-  const RECT r = ToClient(SR({400, 0, kClientW, 80}));
+  const RECT r = ToClient(SR({0, 490, kSideW, kClientH}));
   InvalidateRect(g.wnd, &r, FALSE);
 }
 
@@ -1207,7 +1358,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         DrawProfileItem(d);
       } else if (d->CtlType == ODT_BUTTON) {
         const int ci = int(d->CtlID) - IDC_COLOR_BTN;
-        if (ci >= 0 && ci < kColorCount && g.cur >= 0) {
+        const int ai = int(d->CtlID) - IDC_ACCENT_BASE;
+        const int ni = int(d->CtlID) - IDC_NAV_BASE;
+        if (ni >= 0 && ni < kPageCount) {
+          DrawNavItem(d, ni);
+        } else if (ai >= 0 && ai < kAccentCount) {
+          DrawAccentChip(d, kAccentPresets[ai].color);
+        } else if (ci >= 0 && ci < kColorCount && g.cur >= 0) {
           const Color c = ColorRef(g.profiles[size_t(g.cur)], ci);
           const COLORREF sw = RGB(c.r, c.g, c.b);
           ui::DrawButton(d, &sw);
@@ -1257,6 +1414,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
           }
         return 0;
       }
+      if (id == IDC_ACCENT_WHEEL && code == ui::kColorWheelChanged) {
+        ApplyAccent(COLORREF(SendMessageW(Item(IDC_ACCENT_WHEEL), ui::kMsgWheelGetColor, 0, 0)), IDC_ACCENT_WHEEL);
+        return 0;
+      }
+      if (id == IDC_ACCENT_HEX && code == EN_CHANGE) {
+        COLORREF c = 0;
+        if (!g.syncingAccent && ui::ParseHexColor(GetUtf8(IDC_ACCENT_HEX), c)) ApplyAccent(c, IDC_ACCENT_HEX);
+        return 0;
+      }
       if (id == IDC_LIST && code == LBN_SELCHANGE) {
         OnSelectProfile();
       } else if (id == IDC_LANG && code == CBN_SELCHANGE) {
@@ -1275,6 +1441,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
       } else if (code == BN_CLICKED) {
         if (id >= IDC_COLOR_BTN && id < IDC_COLOR_BTN + kColorCount) OnPickColor(id - IDC_COLOR_BTN);
+        if (id >= IDC_ACCENT_BASE && id < IDC_ACCENT_BASE + kAccentCount) ApplyAccent(kAccentPresets[id - IDC_ACCENT_BASE].color);
+        if (id == IDC_ACCENT_RESET) ApplyAccent(ui::col::DefaultAccent);
+        if (id >= IDC_NAV_BASE && id < IDC_NAV_BASE + kPageCount) {
+          EndCapture(false);
+          ShowPage(id - IDC_NAV_BASE);
+        }
         switch (id) {
           case IDC_IMPORT_RTSS: OnImportRtss(); break;
           case IDC_UPDATE: OnUpdateClicked(); break;
@@ -1368,7 +1540,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       std::unique_ptr<UpdateInfo> u(reinterpret_cast<UpdateInfo*>(lp));
       g.update = std::move(*u);
       PlaceUpdateButton();
-      Status(TF(L"È disponibile la versione v{}: premi \"Aggiorna\" in alto.", ToWide(g.update->version)),
+      Status(TF(L"È disponibile la versione v{}: premi \"Aggiorna\" in basso a sinistra.", ToWide(g.update->version)),
              ui::col::Accent);
       return 0;
     }
@@ -1390,6 +1562,25 @@ HFONT MakeFont(int tenthsOfPoint, int weight) {
                      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 }
 
+// Icone della barra laterale: Segoe Fluent Icons (Windows 11), altrimenti Segoe MDL2 Assets (Windows 10).
+HFONT MakeIconFont() {
+  static const wchar_t* face = [] {
+    LOGFONTW lf{};
+    lf.lfCharSet = DEFAULT_CHARSET;
+    wcscpy_s(lf.lfFaceName, L"Segoe Fluent Icons");
+    bool found = false;
+    HDC dc = GetDC(nullptr);
+    EnumFontFamiliesExW(dc, &lf, [](const LOGFONTW*, const TEXTMETRICW*, DWORD, LPARAM p) -> int {
+      *reinterpret_cast<bool*>(p) = true;
+      return 0;
+    }, reinterpret_cast<LPARAM>(&found), 0);
+    ReleaseDC(nullptr, dc);
+    return found ? L"Segoe Fluent Icons" : L"Segoe MDL2 Assets";
+  }();
+  return CreateFontW(-S(16), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                     CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, face);
+}
+
 // La finestra si può ridimensionare e ingrandire: tutto (controlli, testo, pannelli) scala con lei
 // in proporzione al disegno originale da 1000x806 a 96 DPI, centrato se le proporzioni sono diverse.
 void Relayout(int clientW, int clientH) {
@@ -1404,16 +1595,17 @@ void Relayout(int clientW, int clientH) {
   SetPropW(g.wnd, ui::kScaleProp, reinterpret_cast<HANDLE>(static_cast<uintptr_t>(MulDiv(1000, g.dpi, 96))));
 
   if (rescale) {
-    const HFONT old[] = {g.font, g.fontBold, g.fontTitle, g.fontSection};
+    const HFONT old[] = {g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontIcon};
+    g.fontIcon = MakeIconFont();
     g.font = MakeFont(95, FW_NORMAL);
     g.fontBold = MakeFont(95, FW_SEMIBOLD);
     g.fontTitle = MakeFont(160, FW_BOLD);
-    g.fontSection = MakeFont(80, FW_BOLD);
+    g.fontSection = MakeFont(100, FW_SEMIBOLD);
     for (const auto& [c, r] : g.layout) SendMessageW(c, WM_SETFONT, reinterpret_cast<WPARAM>(g.font), FALSE);
     for (HFONT f : old)
       if (f) DeleteObject(f);
     if (g.icon) DestroyIcon(g.icon);
-    g.icon = static_cast<HICON>(LoadImageW(g.inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, S(44), S(44), 0));
+    g.icon = static_cast<HICON>(LoadImageW(g.inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, S(32), S(32), 0));
   }
 
   HDWP dwp = BeginDeferWindowPos(int(g.layout.size()));
@@ -1450,22 +1642,26 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   g.inst = inst;
   g.dpi = g.baseDpi = int(GetDpiForSystem());
   g.cfg = LoadConfig();
+  if (COLORREF accent; ui::ParseHexColor(g.cfg.uiAccent, accent)) ui::SetAccent(accent);
   g.games = LoadGames();
   g.profiles = LoadProfiles();
   g.cur = 0;
 
   EnableDarkModeForApp();
   ui::Init(inst);
+  ui::RegisterColorWheel(inst);
+  g.fontIcon = MakeIconFont();
   g.font = MakeFont(95, FW_NORMAL);
   g.fontBold = MakeFont(95, FW_SEMIBOLD);
   g.fontTitle = MakeFont(160, FW_BOLD);
-  g.fontSection = MakeFont(80, FW_BOLD);
+  g.fontSection = MakeFont(100, FW_SEMIBOLD);
   g.fontDlg = MakeFont(95, FW_NORMAL);
   g.brBg = CreateSolidBrush(ui::col::Bg);
   g.brPanel = CreateSolidBrush(ui::col::Panel);
   g.brInput = CreateSolidBrush(ui::col::Input);
   g.brInputOff = CreateSolidBrush(kInputOff);
-  g.icon = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, S(44), S(44), 0));
+  g.brSide = CreateSolidBrush(kSidebar);
+  g.icon = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, S(32), S(32), 0));
 
   WNDCLASSEXW wc{sizeof(wc)};
   wc.lpfnWndProc = WndProc;
@@ -1510,10 +1706,14 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   RefreshList();
   ProfileToUi();
   GlobalToUi();
+  g.syncingAccent = true;  // ruota e codice mostrano il colore in uso, senza riapplicarlo
+  SendMessageW(Item(IDC_ACCENT_WHEEL), ui::kMsgWheelSetColor, CurrentAccent(), 0);
+  SetUtf8(IDC_ACCENT_HEX, ui::HexColor(CurrentAccent()));
+  g.syncingAccent = false;
+  ShowPage(0);
   UpdateMonitorState();
   SetTimer(g.wnd, kTimerMonitor, 1500, nullptr);
   StartUpdateCheck();
-  Status(T(L"Il profilo \"default\" vale per tutti i giochi senza un profilo dedicato."));
   ShowWindow(g.wnd, show);
 
   MSG msg;
@@ -1522,8 +1722,8 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }
-  for (HGDIOBJ o : std::initializer_list<HGDIOBJ>{g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontDlg, g.brBg, g.brPanel,
-                                                  g.brInput, g.brInputOff})
+  for (HGDIOBJ o : std::initializer_list<HGDIOBJ>{g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontDlg, g.fontIcon,
+                                                  g.brBg, g.brPanel, g.brInput, g.brInputOff, g.brSide})
     DeleteObject(o);
   if (g.icon) DestroyIcon(g.icon);
   ui::Shutdown();

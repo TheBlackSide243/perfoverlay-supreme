@@ -14,7 +14,7 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 
 **[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Impostazioni**: profili, layout, elementi visibili, colori, hotkey e lingua in un'unica finestra, ridimensionabile.
+**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con il colore dell'interfaccia a scelta.
 
 ![Finestra delle impostazioni](docs/images/settings.png)
 
@@ -44,7 +44,8 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
 - **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
-- **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › "Lingua / Language". La prima volta segue la lingua di Windows.
+- **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › Generali › "Lingua / Language". La prima volta segue la lingua di Windows.
+- **Colore dell'interfaccia a scelta**: in Impostazioni › Tema, con una ruota colori, sei colori pronti o il codice esadecimale.
 - **Aggiornamento automatico**: l'overlay controlla GitHub ogni 6 ore e installa da solo le versioni nuove (mai durante una partita), poi si riavvia e lo segnala con una notifica. L'exe viene verificato (SHA-256) prima di sostituire quello in uso. In Impostazioni › "Aggiornamenti" si può scegliere anche "Solo avviso" (pulsante "Aggiorna a vX.Y.Z" nelle impostazioni) o "Disattivati".
 
 ## Download e uso

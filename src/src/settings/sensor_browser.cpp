@@ -336,7 +336,7 @@ void Paint(HDC dc, const RECT& client) {
   DrawTextAt(dc, T(L"Etichetta nell'overlay"), SR({20, 642, 186, 670}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   DrawTextAt(dc, what, SR({500, 642, 1020, 670}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   const RECT frame = SR({190, 642, 480, 642 + kRowH});
-  ui::FillRound(dc, frame, S(6), ui::col::Input, B->focusedEdit ? ui::col::Accent : ui::col::Line);
+  ui::FillRound(dc, frame, S(8), ui::col::Input, B->focusedEdit ? ui::col::Accent : ui::col::Field);
 
   DrawTextAt(dc,
              TF(L"{} {} nell'overlay.  Nel layout libero ognuno è un blocco da spostare nell'Editor; "
@@ -345,7 +345,7 @@ void Paint(HDC dc, const RECT& client) {
              SR({20, 712, 780, 740}), B->font, ui::col::Sub, DT_LEFT | DT_VCENTER);
   ui::FillRound(dc, SR({690, 4, 1028, 84}), S(8), ui::col::Panel, ui::col::Line);
   const RECT sframe = SR({700, 12, 1020, 12 + kRowH});
-  ui::FillRound(dc, sframe, S(6), ui::col::Input, B->focusedEdit == IDC_SEARCH ? ui::col::Accent : ui::col::Line);
+  ui::FillRound(dc, sframe, S(8), ui::col::Input, B->focusedEdit == IDC_SEARCH ? ui::col::Accent : ui::col::Field);
 }
 
 // ------------------------------------------------------------ notifiche della lista

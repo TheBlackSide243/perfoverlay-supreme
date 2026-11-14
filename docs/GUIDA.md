@@ -24,7 +24,8 @@
 Tutto è in un solo file, `PerfOverlaySupreme.exe`: overlay, impostazioni, editor, store e finestra di prova.
 
 - **Doppio clic**: avvia l'overlay. Chiede l'amministratore, che serve per gli FPS. Se l'overlay è già attivo, apre le **impostazioni**.
-- **Finestra delle impostazioni**: si può ridimensionare e massimizzare, e tutto il contenuto scala con lei. All'apertura si adatta allo schermo (più piccola sui monitor bassi) e resta nitida anche spostandola su un monitor con scala diversa.
+- **Finestra delle impostazioni**: a sinistra la barra delle sezioni (Profili, Aspetto overlay, Elementi e sensori, Hotkey, Generali, Tema), a destra la sezione scelta. In fondo alla barra ci sono lo stato dell'overlay e, quando serve, "Avvia overlay" e "Aggiorna a vX.Y.Z"; "Salva e applica" è sempre in basso a destra. La finestra si può ridimensionare e massimizzare e tutto il contenuto scala con lei; all'apertura si adatta allo schermo e resta nitida anche su un monitor con scala diversa.
+- **Tema**: la sezione Tema cambia il colore d'accento della finestra. Si sceglie con la ruota colori (anello per la tonalità, quadrato per chiarezza e intensità; da tastiera frecce e PagSu/PagGiù), con uno dei sei colori pronti o scrivendo il codice (es. `#22D3EE`). Il colore si applica subito e resta con "Salva e applica"; "Predefinito" torna al blu. Un colore troppo scuro viene schiarito quanto basta per restare leggibile.
 - **Icona vicino all'orologio, tasto destro**: mostra/nascondi, solo FPS, profilo, Impostazioni, Test overlay (DirectX 11/12), log, esci.
 - **Riga di comando**:
 
@@ -96,7 +97,7 @@ I preset dell'OverlayEditor con immagini, grafici, formule e condizioni (es. Tro
 
 ## Layout libero (editor in stile RTSS)
 
-Impostazioni › Profilo selezionato › Layout › **"Editor..."**
+Impostazioni › Aspetto overlay › Layout › **"Editor..."**
 
 - **Formato della tela**: si sceglie in alto a destra. L'editor si apre già su quello del monitor (3440×1440 → 21:9). Se un formato non ha ancora un layout, viene creato copiando il 16:9.
 - **Blocchi**: ogni elemento (FPS, grafico FPS, frame time, CPU, GPU, RAM, batteria, sensori) è un blocco da trascinare col mouse.
@@ -121,7 +122,7 @@ Le coordinate sono in pixel di una tela alta 1080 e vengono riportate in proporz
 
 ## Sensori di sistema
 
-Impostazioni › Profilo selezionato › **"Sensori di sistema"** (anche dall'editor) mostra tutti i sensori letti dall'overlay. Per ogni sensore ci sono valore, minimo e massimo, aggiornati ogni secondo, e una casella di ricerca. Spunta un sensore per mostrarlo nell'overlay e scegli l'etichetta con cui compare.
+Impostazioni › Elementi e sensori › **"Scegli i sensori..."** (anche dall'editor) mostra tutti i sensori letti dall'overlay. Per ogni sensore ci sono valore, minimo e massimo, aggiornati ogni secondo, e una casella di ricerca. Spunta un sensore per mostrarlo nell'overlay e scegli l'etichetta con cui compare.
 
 - **Integrati**:
   - CPU totale e per core (utilizzo, frequenza);
@@ -135,7 +136,7 @@ Impostazioni › Profilo selezionato › **"Sensori di sistema"** (anche dall'ed
 
 ## Temperatura CPU
 
-Senza un driver, su Ryzen e Intel Windows non espone la temperatura della CPU. Per averla, apri Impostazioni › "Sensori di sistema" › **"Temperatura CPU..."**. Dopo una conferma PerfOverlay Supreme:
+Senza un driver, su Ryzen e Intel Windows non espone la temperatura della CPU. Per averla, apri Impostazioni › Elementi e sensori › "Scegli i sensori..." › **"Temperatura CPU..."**. Dopo una conferma PerfOverlay Supreme:
 
 1. scarica [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (open source) dalle release ufficiali su GitHub in `%LOCALAPPDATA%\PerfOverlay Supreme\LibreHardwareMonitor`;
 2. lo avvia nascosto nella tray, con il server web locale su `127.0.0.1:8085`. Al primo avvio LibreHardwareMonitor chiede di installare il suo driver PawnIO;
@@ -168,11 +169,11 @@ Si cambiano da Impostazioni › "Cambia" accanto alla hotkey.
 
 ## Lingua
 
-Impostazioni › Impostazioni globali › **"Lingua / Language"**: Italiano o English. Le impostazioni si riaprono subito nella nuova lingua, e l'overlay (menu della tray e nomi dei sensori) si aggiorna da solo. La prima volta la lingua segue quella di Windows.
+Impostazioni › Generali › **"Lingua / Language"**: Italiano o English. Le impostazioni si riaprono subito nella nuova lingua, e l'overlay (menu della tray e nomi dei sensori) si aggiorna da solo. La prima volta la lingua segue quella di Windows.
 
 ## Aggiornamenti
 
-La scelta è in Impostazioni globali › **Aggiornamenti**:
+La scelta è in Impostazioni › Generali › **Aggiornamenti**:
 
 | Scelta | Cosa fa |
 |---|---|
@@ -180,7 +181,7 @@ La scelta è in Impostazioni globali › **Aggiornamenti**:
 | **Solo avviso** | niente installazioni automatiche: compare solo il pulsante nelle impostazioni (vedi sotto). |
 | **Disattivati** | nessun controllo. |
 
-Inoltre all'apertura, le impostazioni controllano su GitHub se c'è una versione più nuova (la versione in uso è scritta accanto al titolo). Se c'è, in alto compare il pulsante **"Aggiorna a vX.Y.Z"**:
+Inoltre all'apertura, le impostazioni controllano su GitHub se c'è una versione più nuova (la versione in uso è scritta sotto il nome, in alto nella barra laterale). Se c'è, in fondo alla barra laterale compare il pulsante **"Aggiorna a vX.Y.Z"**:
 
 1. mostra le novità e chiede conferma;
 2. salva le modifiche in corso;
@@ -212,5 +213,5 @@ Per aprire la cartella dalle impostazioni: "Apri cartella dati".
 
 ## Limiti
 
-- Nel fullscreen **esclusivo** l'overlay non si vede. Usa la modalità "Finestra senza bordi" del gioco. Quando un gioco usa il fullscreen esclusivo PerfOverlay Supreme lo segnala con una notifica, una volta per gioco (si disattiva in Impostazioni globali → "Avvisa se un gioco usa il fullscreen esclusivo"). La finestra del gioco non viene mai modificata.
+- Nel fullscreen **esclusivo** l'overlay non si vede. Usa la modalità "Finestra senza bordi" del gioco. Quando un gioco usa il fullscreen esclusivo PerfOverlay Supreme lo segnala con una notifica, una volta per gioco (si disattiva in Impostazioni › Generali → "Avvisa se un gioco usa il fullscreen esclusivo"). La finestra del gioco non viene mai modificata.
 - Alcuni giochi competitivi vietano gli overlay di terze parti: controlla i termini del gioco.
