@@ -14,9 +14,12 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 
 **[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with an interface color of your choice (Italian UI shown; English is available).
+**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with an interface color of your choice, picked from the color wheel in the Theme section.
 
-![Settings window](docs/images/settings.png)
+<p>
+  <img src="docs/images/settings.en.png" alt="Settings window, Profiles section" width="49%">
+  <img src="docs/images/settings-tema.en.png" alt="Settings window, Theme section with the color wheel" width="49%">
+</p>
 
 **Overlay** on top of the built-in test scene:
 

@@ -14,9 +14,12 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 
 **[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con il colore dell'interfaccia a scelta.
+**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con il colore dell'interfaccia a scelta dalla ruota colori della sezione Tema.
 
-![Finestra delle impostazioni](docs/images/settings.png)
+<p>
+  <img src="docs/images/settings.png" alt="Finestra delle impostazioni, sezione Profili" width="49%">
+  <img src="docs/images/settings-tema.png" alt="Finestra delle impostazioni, sezione Tema con la ruota colori" width="49%">
+</p>
 
 **Overlay** sopra la scena di prova integrata:
 
