@@ -149,6 +149,8 @@ GpuStats GpuMonitor::Sample(DWORD gamePid, DWORD watchPid, ProcessGpu* watch) {
   const Adapter& ad = adapters_[size_t(std::max(selected_, 0))];
   s.name = ad.name;
   s.vendorId = ad.vendorId;
+  s.luidHi = ad.luidHi;
+  s.luidLo = ad.luidLo;
   if (ad.dedicatedBytes > 0) s.vramTotalGB = ad.dedicatedBytes / kGB;
 
   if (engineUtil_) {

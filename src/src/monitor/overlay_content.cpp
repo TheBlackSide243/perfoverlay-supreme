@@ -246,6 +246,10 @@ std::vector<Row> BuildSensorRows(const ContentInput& in) {
     b.Colored(in.toast, in.toastAlert ? kRed : in.profile->colors.text, 0.8f, in.toastAlert);
     rows.push_back(b.Take());
   }
+  if (!in.alert.empty()) {
+    b.Colored(in.alert, kYellow, 0.8f, true);
+    rows.push_back(b.Take());
+  }
   if (in.fpsOnly || !in.system->ready) return rows;
   for (const auto& sp : in.profile->sensors) {
     AddSensor(b, *in.profile, *in.system, sp);
@@ -294,6 +298,10 @@ std::vector<Row> BuildRows(const ContentInput& in) {
 
   if (!in.toast.empty()) {
     b.Colored(in.toast, in.toastAlert ? kRed : p.colors.text, 0.8f, in.toastAlert);
+    rows.push_back(b.Take());
+  }
+  if (!in.alert.empty()) {
+    b.Colored(in.alert, kYellow, 0.8f, true);
     rows.push_back(b.Take());
   }
 

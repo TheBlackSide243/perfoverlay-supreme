@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.8.0 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.9.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -62,6 +62,7 @@ add_executable(PerfOverlay WIN32
   src/monitor/data/sensors.cpp
   src/monitor/data/system_sensors.cpp
   src/monitor/data/nvml.cpp
+  src/monitor/data/gpu_extra.cpp
   src/monitor/data/wmi.cpp
   src/settings/main.cpp
   src/settings/settings_window.cpp
@@ -101,5 +102,6 @@ add_executable(rtss-preview EXCLUDE_FROM_ALL
   src/monitor/data/sensors.cpp
   src/monitor/data/system_sensors.cpp
   src/monitor/data/nvml.cpp
+  src/monitor/data/gpu_extra.cpp
   src/monitor/data/wmi.cpp)
 target_link_libraries(rtss-preview PRIVATE po_common d3d11 dxgi d2d1 dwrite dcomp pdh powrprof wbemuuid oleaut32 psapi winhttp)

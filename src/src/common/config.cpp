@@ -291,7 +291,12 @@ void to_json(json& j, const Profile& p) {
            {"show", p.show},
            {"fpsRedBelow", p.fpsRedBelow},
            {"fpsYellowBelow", p.fpsYellowBelow},
-           {"bgOpacity", p.bgOpacity}};
+           {"bgOpacity", p.bgOpacity},
+           {"alerts", p.alerts},
+           {"alertGpuTemp", p.alertGpuTemp},
+           {"alertCpuTemp", p.alertCpuTemp},
+           {"alertVramPct", p.alertVramPct},
+           {"alertRamPct", p.alertRamPct}};
 }
 void from_json(const json& j, Profile& p) {
   Get(j, "name", p.name);
@@ -320,6 +325,11 @@ void from_json(const json& j, Profile& p) {
   Get(j, "fpsRedBelow", p.fpsRedBelow);
   Get(j, "fpsYellowBelow", p.fpsYellowBelow);
   Get(j, "bgOpacity", p.bgOpacity);
+  Get(j, "alerts", p.alerts);
+  Get(j, "alertGpuTemp", p.alertGpuTemp);
+  Get(j, "alertCpuTemp", p.alertCpuTemp);
+  Get(j, "alertVramPct", p.alertVramPct);
+  Get(j, "alertRamPct", p.alertRamPct);
   Sanitize(p);
 }
 
@@ -399,6 +409,10 @@ void Sanitize(Profile& p) {
     p.sensors = std::move(unique);
   }
   p.style = "steam";  // unico stile: quello della barra Steam
+  p.alertGpuTemp = std::clamp(p.alertGpuTemp, 0, 150);
+  p.alertCpuTemp = std::clamp(p.alertCpuTemp, 0, 150);
+  p.alertVramPct = std::clamp(p.alertVramPct, 0, 100);
+  p.alertRamPct = std::clamp(p.alertRamPct, 0, 100);
   OneOf(p.layout, {"bar", "vertical", "free", "rtss"});
   if (p.layout == "rtss" && p.rtss.layers.empty()) p.layout = "bar";  // nessun preset importato
   // Layout libero: solo formati noti, 16:9 sempre presente, un blocco per ogni elemento,

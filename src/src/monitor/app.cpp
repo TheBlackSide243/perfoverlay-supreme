@@ -286,6 +286,30 @@ RunSummary App::MakeRunMeta(const char* kind, const ForegroundInfo& fg, const Sy
 }
 
 // Passa ai registratori i frame nuovi del gioco in primo piano e una lettura dei sensori.
+// Avvisi del profilo: un valore fa scattare l'avviso alla soglia e lo spegne solo quando scende di qualche
+// punto, così la riga non compare e scompare a ogni lettura.
+std::wstring App::AlertText(const Profile& p, const SystemSnapshot& sys) {
+  std::wstring text;
+  auto check = [&](int i, int threshold, std::optional<double> value, double back, const wchar_t* format) {
+    if (!p.alerts || threshold <= 0 || !value || !sys.ready) {
+      alertOn_[i] = false;
+      return;
+    }
+    alertOn_[i] = *value >= threshold || (alertOn_[i] && *value >= threshold - back);
+    if (!alertOn_[i]) return;
+    text += (text.empty() ? L"⚠ " : L"   ") + std::vformat(format, std::make_wformat_args(*value));
+  };
+  std::optional<double> vram, ram;
+  if (sys.gpu.vramUsedGB && sys.gpu.vramTotalGB && *sys.gpu.vramTotalGB > 0)
+    vram = 100.0 * *sys.gpu.vramUsedGB / *sys.gpu.vramTotalGB;
+  if (sys.ram.totalGB > 0) ram = 100.0 * sys.ram.usedGB / sys.ram.totalGB;
+  check(0, p.alertGpuTemp, sys.gpu.tempC, 3, L"GPU {:.0f} °C");
+  check(1, p.alertCpuTemp, sys.cpuTempC, 3, L"CPU {:.0f} °C");
+  check(2, p.alertVramPct, vram, 2, L"VRAM {:.0f}%");
+  check(3, p.alertRamPct, ram, 2, L"RAM {:.0f}%");
+  return text;
+}
+
 double App::RefreshHz(HWND game) {
   const ULONGLONG now = GetTickCount64();
   if (refreshReadAt_ && now - refreshReadAt_ < 5000) return refreshHz_;
@@ -507,6 +531,7 @@ void App::Tick() {
 
   ContentInput in;
   in.limit = limit;
+  if (mode == Mode::Game) in.alert = AlertText(profile, sys);
   in.profile = &profile;
   in.frames = mode == Mode::Game ? &fs : nullptr;
   in.system = &sys;
@@ -569,10 +594,15 @@ void App::Tick() {
       }
       blocks.push_back({std::move(row), item.x, item.y, item.scale / 100.0f});
     }
-    if (!in.toast.empty() && !blocks.empty()) {  // messaggi temporanei sopra il blocco più in alto
-      Row toast{Segment{Segment::Kind::Text, in.toast, in.toastAlert ? Color{0xFF, 0x4A, 0x4A} : profile.colors.text,
-                        0.8f, in.toastAlert}};
-      blocks.push_back({std::move(toast), topX, std::max(0, topY - 40), 1.0f});
+    if (!blocks.empty()) {  // messaggi temporanei e avvisi sopra il blocco più in alto
+      int noteY = topY;
+      auto note = [&](const std::wstring& text, Color color, bool bold) {
+        if (text.empty()) return;
+        noteY = std::max(0, noteY - 40);
+        blocks.push_back({Row{Segment{Segment::Kind::Text, text, color, 0.8f, bold}}, topX, noteY, 1.0f});
+      };
+      note(in.alert, Color{0xFF, 0xC8, 0x3C}, true);
+      note(in.toast, in.toastAlert ? Color{0xFF, 0x4A, 0x4A} : profile.colors.text, in.toastAlert);
     }
     if (blocks.empty()) {
       overlay_.Show(false);

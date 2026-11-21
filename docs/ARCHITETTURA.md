@@ -54,7 +54,7 @@ src/
     rtss_engine.*         motore dell'OverlayEditor: sorgenti, formule, provider
     rtss_render.cpp       hypertext RTSS avanzato: <C> <S> <B> <I> <AI> <G> <P> <IF>
     stats.*               thread di raccolta metriche
-    data/                 CPU (PDH), GPU (DXGI + contatori), NVML, RAM, batteria,
+    data/                 CPU (PDH), GPU (DXGI + contatori), NVML, gpu_extra (ADL per AMD, WDDM per tutte), RAM, batteria,
                           sensori (HWiNFO shared memory, LHM WMI/HTTP), sensori di sistema, WMI
   src/settings/
     settings_window.*     finestra principale delle impostazioni: barra laterale e una pagina alla volta (g.layoutPage, ShowPage);
@@ -98,6 +98,8 @@ Aggiornamento automatico (`autoUpdate`, "Aggiornamenti: Automatici"): lo fa l'ov
 | CPU utilizzo, per core, frequenza | PDH `% Processor Utility` / `% Processor Performance` | `% Processor Time` |
 | CPU temperatura / potenza | HWiNFO → LibreHardwareMonitor (WMI o HTTP `127.0.0.1:8085`) | omessa |
 | GPU NVIDIA (tutti i sensori) | NVML, caricata dinamicamente | contatori `GPU Engine` / DXGI |
+| GPU AMD (temperatura, consumo, frequenza, ventola) | ADL (`atiadlxx.dll` dei driver, `ADL2_New_QueryPMLogData_Get`) | lettura di Windows |
+| Temperatura e ventola GPU (qualsiasi scheda) | `D3DKMTQueryAdapterInfo` con `KMTQAITYPE_ADAPTERPERFDATA` (WDDM 2.4+, la lettura di Gestione attività) | omesse |
 | GPU utilizzo, VRAM (altre) | contatori `GPU Engine` / `GPU Adapter Memory` + DXGI | — |
 | VRAM del gioco | contatore `GPU Process Memory` del processo del gioco | omessa |
 | Temperatura SSD | `IOCTL_STORAGE_QUERY_PROPERTY` (StorageDeviceTemperatureProperty) | omessa |

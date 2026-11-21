@@ -2,9 +2,11 @@
 
 #include <objbase.h>
 
+#include <format>
 #include <unordered_map>
 
 #include "common/log.h"
+#include "monitor/data/gpu_extra.h"
 #include "monitor/data/nvml.h"
 #include "monitor/data/sensors.h"
 #include "monitor/data/system_sensors.h"
@@ -51,6 +53,9 @@ void StatsCollector::Loop() {
     SensorHub sensors;
     NvmlReader nvml;
     const bool hasNvml = nvml.Init();
+    AdlReader adl;
+    const bool hasAdl = adl.Init();
+    std::string wddmLogged;  // scheda per cui è già stato scritto nel log cosa fornisce Windows
 
     int ramSpeed = 0;
     {
@@ -95,6 +100,29 @@ void StatsCollector::Loop() {
       }
       if (hasNvml && s.gpu.vendorId == 0x10DE && (!s.gpu.tempC || !s.gpu.clockMHz || !s.gpu.powerW))
         nvml.Read(s.gpu.name, s.gpu.tempC, s.gpu.clockMHz, s.gpu.powerW);
+      // Schede AMD: sensori dei driver (ADL). Qualsiasi scheda: temperatura e ventola da Windows, se mancano ancora.
+      if (hasAdl && s.gpu.vendorId == 0x1002) {
+        GpuExtra x;
+        if (adl.Read(s.gpu.name, x)) {
+          if (!s.gpu.tempC) s.gpu.tempC = x.tempC;
+          if (!s.gpu.clockMHz) s.gpu.clockMHz = x.clockMHz;
+          if (!s.gpu.powerW) s.gpu.powerW = x.powerW;
+          s.gpu.fanRpm = x.fanRpm;
+        }
+      }
+      if (!s.gpu.name.empty() && (!s.gpu.tempC || !s.gpu.fanRpm)) {
+        const GpuExtra w = ReadWddmGpu(s.gpu.luidHi, s.gpu.luidLo);
+        if (!s.gpu.tempC) s.gpu.tempC = w.tempC;
+        if (!s.gpu.fanRpm) s.gpu.fanRpm = w.fanRpm;
+        if (wddmLogged != s.gpu.name) {
+          wddmLogged = s.gpu.name;
+          LogInfo("GPU {}: da Windows temperatura {} (in uso: {}), ventola {}, consumo {}", s.gpu.name,
+                  w.tempC ? std::format("{:.0f} °C", *w.tempC) : std::string("n/d"),
+                  s.gpu.tempC ? std::format("{:.0f} °C", *s.gpu.tempC) : std::string("n/d"),
+                  w.fanRpm ? std::format("{:.0f} RPM", *w.fanRpm) : std::string("n/d"),
+                  w.powerPct ? std::format("{:.0f}% del massimo", *w.powerPct) : std::string("n/d"));
+        }
+      }
 
       s.ram = ReadRam();
       s.ram.speedMTs = ramSpeed;
@@ -105,6 +133,7 @@ void StatsCollector::Loop() {
         auto list = std::make_shared<SensorList>();
         system.Collect(s.cpu, s.gpu, hasNvml && s.gpu.vendorId == 0x10DE, s.ram, s.battery, *list);
         if (hasNvml) nvml.ReadAll(*list);
+        if (hasAdl) adl.ReadAll(*list);
         list->insert(list->end(), readings.all.begin(), readings.all.end());
         for (auto& e : *list) {
           if (e.id.starts_with("hwi:") || e.id.starts_with("lhm:")) continue;  // min/max già forniti

@@ -42,10 +42,11 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
   - preset semplici modificabili nell'editor.
 - **Store overlay**: sei overlay base più gli overlay RTSS pubblicati su GitHub dai loro autori (scaricati dai repository originali), con ricerca integrata.
 - **Sensori di sistema**:
-  - integrati: CPU per core, GPU NVIDIA completa via NVML, dischi con temperatura SSD, rete, batteria;
+  - integrati: CPU per core, GPU NVIDIA completa via NVML, GPU AMD dai driver (temperatura, consumo, frequenza, ventola), temperatura della scheda video da Windows per le altre, dischi con temperatura SSD, rete, batteria;
   - VRAM della scheda e VRAM occupata dal solo gioco;
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
 - **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
+- **Avvisi nell'overlay**: una riga gialla compare quando la temperatura di GPU o CPU è troppo alta o quando VRAM o RAM sono quasi piene; le soglie si scelgono per profilo.
 - **Che cosa limita gli FPS**: accanto agli FPS l'overlay può dire se il collo di bottiglia è la GPU, la CPU, un limitatore di FPS o il V-Sync.
 - **Grafico del frame time** e **FPS reali con la frame generation**: gli scatti si vedono frame per frame; con AMD FSR, AFMF o Intel XeSS-FG l'overlay separa i frame disegnati dal gioco da quelli generati.
 - **Benchmark**: con Ctrl+Shift+B registri le prestazioni del gioco (FPS medi, 1% e 0,1% low, stutter, utilizzo e temperature, tempo di ogni frame in CSV) e confronti due registrazioni con numeri e grafico.
@@ -113,7 +114,7 @@ PerfOverlay Supreme non inietta DLL, non legge né scrive la memoria dei giochi 
 - Le latenze Reflex/PresentMon dei preset RTSS mostrano N/A: la latenza non viene misurata.
 - La frame generation di NVIDIA (DLSS) non dichiara i frame generati: lì l'overlay mostra solo gli FPS totali.
 - La temperatura della CPU richiede HWiNFO o LibreHardwareMonitor, perché Windows non la espone senza un driver.
-- La GPU completa è supportata su NVIDIA (NVML). Per AMD e Intel servono HWiNFO o LibreHardwareMonitor.
+- I sensori completi della GPU ci sono per NVIDIA (NVML) e AMD (driver). Per Intel c'è la temperatura data da Windows, quando il driver la fornisce; il resto richiede HWiNFO o LibreHardwareMonitor.
 
 ## Crediti
 

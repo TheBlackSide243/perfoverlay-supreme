@@ -187,6 +187,12 @@ struct Profile {
   int fpsRedBelow = 30;
   int fpsYellowBelow = 60;
   int bgOpacity = 55;                 // 0..100
+  // Avvisi: una riga gialla nell'overlay finché un valore resta sopra la soglia. Soglia 0 = nessun avviso.
+  bool alerts = true;
+  int alertGpuTemp = 87;              // °C
+  int alertCpuTemp = 95;              // °C
+  int alertVramPct = 98;              // % della VRAM della scheda
+  int alertRamPct = 95;               // % della RAM
 
   std::map<std::string, bool> fields;  // "cpu.temp" → mostrato; assente = valore predefinito
   std::vector<SensorPick> sensors;     // sensori extra mostrati dopo gli elementi fissi

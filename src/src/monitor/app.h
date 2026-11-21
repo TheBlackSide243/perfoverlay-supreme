@@ -43,6 +43,7 @@ class App {
   void UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys, const FrameStats& fs,
                        Limit limit);
   double RefreshHz(HWND game);  // frequenza del monitor su cui sta il gioco (riletta ogni pochi secondi)
+  std::wstring AlertText(const Profile& p, const SystemSnapshot& sys);  // avvisi attivi, vuoto se nessuno
   void UpdateBenchmarkHotkey();  // la hotkey del benchmark è attiva solo con un gioco in primo piano
   void ToggleBenchmark();
   void StopBenchmark();
@@ -87,6 +88,7 @@ class App {
   ULONGLONG limitLoggedAt_ = 0;
   std::string loggedFrameGen_;
   double refreshHz_ = 0;
+  bool alertOn_[4] = {};          // avvisi attivi: temperatura GPU, temperatura CPU, VRAM, RAM
   ULONGLONG refreshReadAt_ = 0;
 
   RunRecorder bench_;             // benchmark avviato con la hotkey

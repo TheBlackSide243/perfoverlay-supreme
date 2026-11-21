@@ -412,6 +412,9 @@ constexpr WEntry kWide[] = {
     {L"Limitato da: ", L"Limited by: "},
     {L"limite FPS", L"FPS cap"},
     {L"Frame generati: {} ({})", L"Generated frames: {} ({})"},
+    {L"Avvisi nell'overlay", L"Overlay warnings"},
+    {L"Avvisa quando un valore è troppo alto", L"Warn when a value is too high"},
+    {L"Soglia 0: nessun avviso per quel valore.", L"Threshold 0: no warning for that value."},
 };
 
 constexpr NEntry kNarrow[] = {
@@ -475,4 +478,12 @@ constexpr NEntry kNarrow[] = {
     {"Utilizzo decoder video", "Video decoder usage"},
     {"PCIe ricezione", "PCIe receive"},
     {"PCIe invio", "PCIe send"},
+    {"Temperatura punto più caldo", "Hotspot temperature"},
+    {"Temperatura grafica", "Graphics temperature"},
+    {"Temperatura SoC", "SoC temperature"},
+    {"Temperatura memoria", "Memory temperature"},
+    {"Consumo ASIC", "ASIC power"},
+    {"Consumo linea grafica", "Graphics rail power"},
+    {"Consumo SoC", "SoC power"},
+    {"Tensione core", "Core voltage"},
 };

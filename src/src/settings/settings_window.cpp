@@ -106,6 +106,11 @@ enum : int {
   IDC_BENCH_SECONDS,
   IDC_SESSION_LOG,
   IDC_SESSION_NOTIFY,
+  IDC_ALERTS,  // avvisi nell'overlay (Elementi e sensori)
+  IDC_ALERT_GPU,
+  IDC_ALERT_CPU,
+  IDC_ALERT_VRAM,
+  IDC_ALERT_RAM,
   IDC_ACCENT_BASE = 1400,  // + indice colore predefinito dell'interfaccia
   IDC_NAV_BASE = 1500,     // + indice pagina della barra laterale
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
@@ -405,6 +410,11 @@ void ProfileToUi() {
   SetInt(IDC_FPSYELLOW, p.fpsYellowBelow);
   for (int i = 0; i < kShowCount; ++i) SetCheck(IDC_SHOW + i, ShowRef(g.profiles[size_t(g.cur)], i));
   for (int i = 0; i < kColorCount; ++i) UpdateSwatch(i);
+  SetCheck(IDC_ALERTS, p.alerts);
+  SetInt(IDC_ALERT_GPU, p.alertGpuTemp);
+  SetInt(IDC_ALERT_CPU, p.alertCpuTemp);
+  SetInt(IDC_ALERT_VRAM, p.alertVramPct);
+  SetInt(IDC_ALERT_RAM, p.alertRamPct);
   const bool def = IsDefault(p);
   EnableField(IDC_NAME, !def);
   EnableField(IDC_MATCH, !def);
@@ -433,6 +443,11 @@ void UiToLook(Profile& p) {
   p.fpsRedBelow = GetInt(IDC_FPSRED, p.fpsRedBelow);
   p.fpsYellowBelow = GetInt(IDC_FPSYELLOW, p.fpsYellowBelow);
   for (int i = 0; i < kShowCount; ++i) ShowRef(p, i) = GetCheck(IDC_SHOW + i);
+  p.alerts = GetCheck(IDC_ALERTS);
+  p.alertGpuTemp = GetInt(IDC_ALERT_GPU, p.alertGpuTemp);
+  p.alertCpuTemp = GetInt(IDC_ALERT_CPU, p.alertCpuTemp);
+  p.alertVramPct = GetInt(IDC_ALERT_VRAM, p.alertVramPct);
+  p.alertRamPct = GetInt(IDC_ALERT_RAM, p.alertRamPct);
 }
 
 // Anteprima con quello che c'è nei controlli in questo momento, anche se non è ancora salvato.
@@ -1146,6 +1161,18 @@ void BuildUi() {
     Button(IDC_COLOR_BTN + i, kColorNames[i], 634 + (i % 2) * 166, 128 + (i / 2) * 36, 154, 30, ui::col::Panel);
   Panel(T(L"Sensori di sistema"), 618, 320, 358, 64);
   Button(IDC_SENSORS, T(L"Scegli i sensori..."), 634, 336, 326, 32, ui::col::Panel);
+  // Avvisi: riga gialla nell'overlay quando un valore supera la soglia.
+  Panel(T(L"Avvisi nell'overlay"), 618, 432, 358, 146);
+  Check(IDC_ALERTS, T(L"Avvisa quando un valore è troppo alto"), 634, 442, 326);
+  Label(L"GPU °C", 634, 474, 66);
+  Edit(IDC_ALERT_GPU, 704, 474, 70);
+  Label(L"CPU °C", 800, 474, 66);
+  Edit(IDC_ALERT_CPU, 870, 474, 70);
+  Label(L"VRAM %", 634, 508, 66);
+  Edit(IDC_ALERT_VRAM, 704, 508, 70);
+  Label(L"RAM %", 800, 508, 66);
+  Edit(IDC_ALERT_RAM, 870, 508, 70);
+  Label(T(L"Soglia 0: nessun avviso per quel valore."), 634, 542, 330);
 
   // 3 · Hotkey
   g_buildPage = 3;

@@ -12,10 +12,12 @@ namespace po {
 struct GpuStats {
   std::string name;
   uint32_t vendorId = 0;
+  uint32_t luidHi = 0, luidLo = 0;    // identificativo dell'adattatore (per le letture di Windows)
   std::optional<double> usage;        // % (engine più carico dell'adattatore)
   std::optional<double> tempC;
   std::optional<double> clockMHz;
   std::optional<double> powerW;
+  std::optional<double> fanRpm;
   std::optional<double> vramUsedGB;
   std::optional<double> vramTotalGB;
   std::optional<double> gameVramGB;  // VRAM dedicata occupata dal solo processo del gioco

@@ -120,6 +120,7 @@ void SystemSensors::Collect(const CpuStats& cpu, const GpuStats& gpu, bool gpuFr
     if (gpu.tempC) add("gpu:temp", gpu.name, TU("Temperatura"), "°C", *gpu.tempC);
     if (gpu.clockMHz) add("gpu:clock", gpu.name, TU("Frequenza"), "MHz", *gpu.clockMHz);
     if (gpu.powerW) add("gpu:power", gpu.name, TU("Consumo"), "W", *gpu.powerW);
+    if (gpu.fanRpm) add("gpu:fan", gpu.name, TU("Ventola"), "RPM", *gpu.fanRpm);
   }
 
   // ---- Memoria

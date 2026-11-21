@@ -13,6 +13,7 @@
 - [Temperatura CPU](#temperatura-cpu)
 - [Prova dell'overlay (DirectX 11 / 12)](#prova-delloverlay-directx-11--12)
 - [Che cosa limita gli FPS, frame generati e grafico del frame time](#che-cosa-limita-gli-fps-frame-generati-e-grafico-del-frame-time)
+- [Avvisi nell'overlay](#avvisi-nelloverlay)
 - [Hotkey](#hotkey)
 - [Benchmark e riepilogo delle partite](#benchmark-e-riepilogo-delle-partite)
 - [Lingua](#lingua)
@@ -94,7 +95,7 @@ I preset dell'OverlayEditor con immagini, grafici, formule e condizioni (es. Tro
 
 - **Dati**:
   - FPS, frametime e 1% low da PerfOverlay;
-  - GPU da NVML;
+  - GPU NVIDIA da NVML, GPU AMD dai driver (ADL), temperatura e ventola da Windows per le altre schede;
   - CPU e RAM da Windows;
   - con LibreHardwareMonitor o HWiNFO anche temperatura CPU, potenza e sensori extra.
 - **Limiti**: le latenze Reflex/PresentMon mostrano N/A.
@@ -134,6 +135,8 @@ Impostazioni › Elementi e sensori › **"Scegli i sensori..."** (anche dall'ed
 - **Integrati**:
   - CPU totale e per core (utilizzo, frequenza);
   - GPU NVIDIA completa: temperatura, ventole, clock, consumo e limite, VRAM, P-state, encoder/decoder, PCIe;
+  - GPU AMD, dai driver: temperatura (anche del punto più caldo), consumo, clock, ventola, tensione;
+  - altre schede video: temperatura e ventola come le mostra Gestione attività, se il driver le fornisce;
   - RAM;
   - dischi: temperatura SSD, attività, lettura/scrittura;
   - rete, batteria, sistema.
@@ -194,6 +197,21 @@ Quando la frame generation è attiva e il driver o il gioco la dichiarano, il nu
 - **Non riconosciuta**: NVIDIA DLSS Frame Generation, che non la dichiara. In quel caso l'overlay mostra solo gli FPS totali.
 
 Questa parte è stata provata con la frame generation simulata della scena di prova (tasto G), non ancora con giochi veri: se in un gioco con FSR o XeSS-FG la scritta `REALI` non compare, nel log (`overlay.log`) manca la riga "Frame generation rilevata".
+
+## Avvisi nell'overlay
+
+Quando un valore supera la soglia, sopra l'overlay compare una riga gialla, per esempio `⚠ GPU 88 °C   VRAM 98%`. Resta finché il valore non scende di qualche punto sotto la soglia.
+
+Le soglie sono in Impostazioni › Elementi e sensori › **Avvisi nell'overlay** e valgono per il profilo selezionato:
+
+| Valore | Soglia predefinita |
+|---|---|
+| Temperatura GPU | 87 °C |
+| Temperatura CPU | 95 °C |
+| VRAM della scheda | 98% |
+| RAM | 95% |
+
+Con soglia 0 quel valore non avvisa mai; togliendo la spunta "Avvisa quando un valore è troppo alto" si spengono tutti. L'avviso della temperatura CPU richiede un sensore (vedi [Temperatura CPU](#temperatura-cpu)). Gli avvisi compaiono solo in gioco.
 
 ## Hotkey
 

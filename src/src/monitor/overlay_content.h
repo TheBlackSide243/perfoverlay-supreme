@@ -19,6 +19,7 @@ struct ContentInput {
   std::wstring toast;                     // messaggio temporaneo (es. cambio profilo)
   bool toastAlert = false;                // messaggio in rosso (registrazione in corso)
   Limit limit = Limit::Unknown;           // che cosa limita gli FPS (mostrato come "LIM")
+  std::wstring alert;                     // avviso in giallo (temperatura alta, memoria quasi piena)
 };
 
 // Traduce le metriche in righe di segmenti. Ordine: FPS, frame time, CPU, GPU, RAM, batteria.

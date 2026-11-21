@@ -48,10 +48,11 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - community RTSS overlays downloaded from their authors' GitHub repositories;
   - built-in GitHub search.
 - **System sensors:**
-  - built in: CPU per core, full NVIDIA GPU data via NVML, disks (including SSD temperature), network and battery;
+  - built in: CPU per core, full NVIDIA GPU data via NVML, AMD GPU data from the drivers (temperature, power, clock, fan), GPU temperature from Windows for other cards, disks (including SSD temperature), network and battery;
   - card VRAM and the VRAM used by the game alone;
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
+- **Overlay warnings**: a yellow line shows up when the GPU or CPU temperature is too high or when VRAM or RAM are almost full; thresholds are set per profile.
 - **What limits your FPS**: next to the FPS the overlay can tell whether the bottleneck is the GPU, the CPU, an FPS cap or V-Sync.
 - **Frame time graph** and **real FPS with frame generation**: stutters show up frame by frame; with AMD FSR, AFMF or Intel XeSS-FG the overlay separates the frames drawn by the game from the generated ones.
 - **Benchmarks**: Ctrl+Shift+B records the game's performance (average FPS, 1% and 0.1% lows, stutter, usage and temperatures, every frame time in a CSV), and you can compare two recordings with numbers and a graph.
@@ -120,7 +121,7 @@ PerfOverlay Supreme does not inject DLLs, does not read or write game memory, an
 - Reflex/PresentMon latency values in RTSS presets show N/A: latency is not measured.
 - NVIDIA frame generation (DLSS) does not report its generated frames, so there the overlay only shows total FPS.
 - CPU temperature needs HWiNFO or LibreHardwareMonitor, because Windows does not expose it without a driver.
-- Full GPU data is only available on NVIDIA (through NVML). AMD and Intel GPUs need HWiNFO or LibreHardwareMonitor.
+- Full GPU sensor data is available for NVIDIA (NVML) and AMD (drivers). Intel GPUs get the temperature reported by Windows, when the driver provides it; anything else needs HWiNFO or LibreHardwareMonitor.
 
 ## Credits
 
