@@ -14,11 +14,11 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 
 **[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with a preview of the overlay while you change it and an interface color of your choice from the color wheel.
+**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with a preview of the overlay while you change it, and a Benchmark section with your performance recordings.
 
 <p>
   <img src="docs/images/settings-aspetto.en.png" alt="Settings window, Overlay look section with the preview" width="49%">
-  <img src="docs/images/settings-tema.en.png" alt="Settings window, Theme section with the color wheel" width="49%">
+  <img src="docs/images/settings-benchmark.en.png" alt="Settings window, Benchmark section comparing two recordings" width="49%">
 </p>
 
 **Overlay** on top of the built-in test scene:
@@ -52,6 +52,8 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - card VRAM and the VRAM used by the game alone;
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
+- **Benchmarks**: Ctrl+Shift+B records the game's performance (average FPS, 1% and 0.1% lows, stutter, usage and temperatures, every frame time in a CSV), and you can compare two recordings with numbers and a graph.
+- **Summary of every session**: when you close a game, a notification tells you how long you played, with average FPS, 1% low and peak temperatures; the history stays in the Benchmark section.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
 - **English or Italian UI**: pick it in Settings › General › "Lingua / Language". The first time it follows the Windows language.
 - **Overlay preview in the settings**: in Overlay look you see the effect of font, size, opacity, colors, items and position right away, before saving.
@@ -69,6 +71,7 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 | Ctrl+Shift+O | show / hide |
 | Ctrl+Shift+P | cycle profiles |
 | Ctrl+Shift+F | FPS only |
+| Ctrl+Shift+B | start / stop a benchmark (in game only) |
 
 Hotkeys can be changed in the settings.
 

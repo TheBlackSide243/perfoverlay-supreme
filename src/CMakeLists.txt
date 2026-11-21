@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.6.0 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.7.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -37,7 +37,8 @@ add_library(po_common STATIC
   src/common/rtss_preset.cpp
   src/common/sensor_feed.cpp
   src/common/lhm.cpp
-  src/common/i18n.cpp)
+  src/common/i18n.cpp
+  src/common/benchmark.cpp)
 target_include_directories(po_common PUBLIC src)
 target_link_libraries(po_common PUBLIC nlohmann_json::nlohmann_json shell32 ole32 advapi32 user32 dwmapi uxtheme urlmon wininet)
 
@@ -66,6 +67,7 @@ add_executable(PerfOverlay WIN32
   src/settings/theme.cpp
   src/settings/color_wheel.cpp
   src/settings/overlay_preview.cpp
+  src/settings/benchmark_page.cpp
   src/settings/layout_editor.cpp
   src/settings/sensor_browser.cpp
   src/settings/games_editor.cpp

@@ -23,6 +23,7 @@
 #include "common/rtss_preset.h"
 #include "common/util.h"
 #include "common/winutil.h"
+#include "settings/benchmark_page.h"
 #include "settings/color_wheel.h"
 #include "settings/gallery.h"
 #include "settings/games_editor.h"
@@ -68,6 +69,7 @@ enum : int {
   IDC_HK_TOGGLE,
   IDC_HK_CYCLE,
   IDC_HK_FPSONLY,
+  IDC_HK_BENCH,
   IDC_OUTOFGAME,
   IDC_FORCED,
   IDC_FPSONLY,
@@ -95,6 +97,15 @@ enum : int {
   IDC_DEMO_BUTTON,
   IDC_DEMO_CHECK,
   IDC_DEMO_EDIT,
+  IDC_RUN_LIST,  // sezione Benchmark: registrazioni, filtro, confronto, dettaglio
+  IDC_RUN_FILTER,
+  IDC_RUN_COMPARE,
+  IDC_RUN_VIEW,
+  IDC_RUN_DELETE,
+  IDC_RUN_FILE,
+  IDC_BENCH_SECONDS,
+  IDC_SESSION_LOG,
+  IDC_SESSION_NOTIFY,
   IDC_ACCENT_BASE = 1400,  // + indice colore predefinito dell'interfaccia
   IDC_NAV_BASE = 1500,     // + indice pagina della barra laterale
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
@@ -113,6 +124,11 @@ constexpr const wchar_t* kLangNames[] = {L"Italiano", L"English"};
 const wchar_t* const kOutOfGameNames[] = {T(L"Nascondi"), T(L"Profilo selezionato sul desktop")};
 // Aggiornamenti: 0 = installati dall'overlay da soli, 1 = solo il pulsante nelle impostazioni, 2 = nessun controllo.
 const wchar_t* const kUpdateNames[] = {T(L"Automatici"), T(L"Solo avviso"), T(L"Disattivati")};
+// Durata di un benchmark: 0 = si ferma ripremendo la hotkey.
+constexpr int kBenchSeconds[] = {0, 30, 60, 120, 300};
+const wchar_t* const kBenchSecondsNames[] = {T(L"Finché ripremi il tasto"), T(L"30 secondi"), T(L"60 secondi"),
+                                             T(L"2 minuti"), T(L"5 minuti")};
+const wchar_t* const kRunFilterNames[] = {T(L"Tutte"), T(L"Solo benchmark"), T(L"Solo partite")};
 // Colori d'accento pronti per l'interfaccia (il primo è il predefinito); la ruota colori fa il resto.
 struct AccentPreset {
   const wchar_t* name;
@@ -135,8 +151,12 @@ const PageInfo kPages[] = {
     {T(L"Elementi e sensori"), L"", nullptr},
     {T(L"Hotkey"), L"", T(L"Scorciatoie da tastiera, attive anche durante il gioco.")},
     {T(L"Generali"), L"", T(L"Comportamento dell'overlay, lingua, avvio e aggiornamenti.")},
-    {T(L"Tema"), L"", T(L"Colore d'accento di questa finestra.")}};
+    {T(L"Tema"), L"", T(L"Colore d'accento di questa finestra.")},
+    {L"Benchmark", L"\uE916", T(L"Benchmark registrati con la hotkey e riepilogo di ogni partita.")}};
 constexpr int kPageCount = int(std::size(kPages));
+constexpr int kPageBenchmark = 6;
+// La sezione Benchmark mostra dati, non impostazioni: nella barra laterale sta un po' staccata dalle altre.
+constexpr int NavY(int i) { return 76 + i * 42 + (i >= kPageBenchmark ? 16 : 0); }
 constexpr int kSideW = 224;  // larghezza della barra laterale (a 96 DPI)
 constexpr COLORREF kSidebar = RGB(20, 20, 23);
 
@@ -475,6 +495,14 @@ void GlobalToUi() {
   SetUtf8(IDC_HK_TOGGLE, g.cfg.hotkeyToggle);
   SetUtf8(IDC_HK_CYCLE, g.cfg.hotkeyCycleProfile);
   SetUtf8(IDC_HK_FPSONLY, g.cfg.hotkeyFpsOnly);
+  SetUtf8(IDC_HK_BENCH, g.cfg.hotkeyBenchmark);
+  int bench = 0;
+  for (int i = 0; i < int(std::size(kBenchSeconds)); ++i)
+    if (kBenchSeconds[i] <= g.cfg.benchmarkSeconds) bench = i;
+  SetSel(IDC_BENCH_SECONDS, bench);
+  SetCheck(IDC_SESSION_LOG, g.cfg.sessionLog);
+  SetCheck(IDC_SESSION_NOTIFY, g.cfg.sessionNotify);
+  ui::BenchPageSetHotkey(ToWide(g.cfg.hotkeyBenchmark));
   SetSel(IDC_OUTOFGAME, IndexOf(kOutOfGame, g.cfg.outOfGame));
   SetSel(IDC_LANG, CurrentLang() == Lang::En ? 1 : 0);
   SetCheck(IDC_FPSONLY, g.cfg.fpsOnly);
@@ -489,7 +517,8 @@ bool UiToGlobal() {
   g.cfg.refreshMs = GetInt(IDC_REFRESH, g.cfg.refreshMs);
   const std::pair<int, std::string*> hks[] = {{IDC_HK_TOGGLE, &g.cfg.hotkeyToggle},
                                               {IDC_HK_CYCLE, &g.cfg.hotkeyCycleProfile},
-                                              {IDC_HK_FPSONLY, &g.cfg.hotkeyFpsOnly}};
+                                              {IDC_HK_FPSONLY, &g.cfg.hotkeyFpsOnly},
+                                              {IDC_HK_BENCH, &g.cfg.hotkeyBenchmark}};
   for (const auto& [id, dst] : hks) {
     const std::string v = GetUtf8(id);
     unsigned mods, vk;
@@ -507,6 +536,15 @@ bool UiToGlobal() {
   g.cfg.autoLearnGames = GetCheck(IDC_AUTOLEARN);
   g.cfg.fullscreenHint = GetCheck(IDC_FSHINT);
   g.cfg.autostart = GetCheck(IDC_AUTOSTART);
+  // Una durata scritta a mano in config.json resta com'è finché non se ne sceglie un'altra dall'elenco.
+  int benchShown = 0;
+  for (int i = 0; i < int(std::size(kBenchSeconds)); ++i)
+    if (kBenchSeconds[i] <= g.cfg.benchmarkSeconds) benchShown = i;
+  if (GetSel(IDC_BENCH_SECONDS) != benchShown)
+    g.cfg.benchmarkSeconds = kBenchSeconds[std::min(GetSel(IDC_BENCH_SECONDS), int(std::size(kBenchSeconds)) - 1)];
+  g.cfg.sessionLog = GetCheck(IDC_SESSION_LOG);
+  g.cfg.sessionNotify = GetCheck(IDC_SESSION_NOTIFY);
+  ui::BenchPageSetHotkey(ToWide(g.cfg.hotkeyBenchmark));
   const int updates = GetSel(IDC_CHECKUPDATES);
   g.cfg.checkUpdates = updates != 2;
   g.cfg.autoUpdate = updates == 0;
@@ -832,13 +870,15 @@ void OnSave() {
 // ------------------------------------------------------------------ cattura hotkey
 // Campo hotkey in sola lettura: con "Cambia" (o un clic sul campo) si preme la combinazione.
 // Esc annulla, Canc/Backspace da soli tolgono la hotkey.
-constexpr int kHotkeyIds[] = {IDC_HK_TOGGLE, IDC_HK_CYCLE, IDC_HK_FPSONLY};
-const wchar_t* const kHotkeyNames[] = {T(L"Mostra / nascondi"), T(L"Cambia profilo"), T(L"Solo FPS")};
+constexpr int kHotkeyIds[] = {IDC_HK_TOGGLE, IDC_HK_CYCLE, IDC_HK_FPSONLY, IDC_HK_BENCH};
+constexpr int kHotkeyCount = int(std::size(kHotkeyIds));
+const wchar_t* const kHotkeyNames[] = {T(L"Mostra / nascondi"), T(L"Cambia profilo"), T(L"Solo FPS"),
+                                       T(L"Avvia / ferma benchmark")};
 int g_capturing = 0;          // id del campo in acquisizione, 0 = nessuno
 std::wstring g_captureBefore;  // valore da ripristinare se si annulla
 
 int HotkeyIndex(int editId) {
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < kHotkeyCount; ++i)
     if (kHotkeyIds[i] == editId) return i;
   return -1;
 }
@@ -1025,7 +1065,7 @@ void HotkeyField(int id, int x, int y) {
 void BuildUi() {
   // Sempre visibili: sezioni, aggiornamento, avvio overlay, salvataggio.
   g_buildPage = -1;
-  for (int i = 0; i < kPageCount; ++i) Button(IDC_NAV_BASE + i, kPages[i].name, 12, 76 + i * 42, 200, 38, kSidebar);
+  for (int i = 0; i < kPageCount; ++i) Button(IDC_NAV_BASE + i, kPages[i].name, 12, NavY(i), 200, 38, kSidebar);
   Button(IDC_UPDATE, L"", 16, 506, 192, 34, kSidebar, true);
   ShowWindow(Item(IDC_UPDATE), SW_HIDE);
   Button(IDC_LAUNCH, T(L"Avvia overlay"), 16, 550, 192, 32, kSidebar);
@@ -1101,15 +1141,18 @@ void BuildUi() {
 
   // 3 · Hotkey
   g_buildPage = 3;
-  Panel(T(L"Scorciatoie da tastiera"), 248, 116, 728, 182);
+  Panel(T(L"Scorciatoie da tastiera"), 248, 116, 728, 250);
   Label(T(L"Mostra / nascondi"), 264, row(0), 200);
   HotkeyField(IDC_HK_TOGGLE, 470, row(0));
   Label(T(L"Cambia profilo"), 264, row(1), 200);
   HotkeyField(IDC_HK_CYCLE, 470, row(1));
   Label(T(L"Solo FPS"), 264, row(2), 200);
   HotkeyField(IDC_HK_FPSONLY, 470, row(2));
-  Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 264, row(3) + 2, 300);
-  Label(T(L"Premi \"Cambia\" e poi la combinazione: Esc annulla, Canc la rimuove."), 264, row(4), 690);
+  Label(T(L"Avvia / ferma benchmark"), 264, row(3), 200);
+  HotkeyField(IDC_HK_BENCH, 470, row(3));
+  Check(IDC_FPSONLY, T(L"Modalità solo FPS"), 264, row(4) + 2, 300);
+  Label(T(L"Premi \"Cambia\" e poi la combinazione: Esc annulla, Canc la rimuove."), 264, row(5), 690);
+  Label(T(L"La hotkey del benchmark è attiva solo con un gioco in primo piano."), 264, row(6) - 8, 690);
 
   // 4 · Generali
   g_buildPage = 4;
@@ -1163,6 +1206,30 @@ void BuildUi() {
   SetText(IDC_DEMO_EDIT, T(L"Campo di testo"));
   for (int id : {IDC_DEMO_PRIMARY, IDC_DEMO_BUTTON, IDC_DEMO_CHECK, IDC_DEMO_EDIT})
     SetWindowLongW(Item(id), GWL_STYLE, GetWindowLongW(Item(id), GWL_STYLE) & ~WS_TABSTOP);
+
+  // 6 · Benchmark: a sinistra le registrazioni e le opzioni, a destra il dettaglio di quella scelta.
+  g_buildPage = kPageBenchmark;
+  Panel(T(L"Registrazioni"), 248, 116, 270, 292);
+  Combo(IDC_RUN_FILTER, 256, 124, 254, kRunFilterNames);
+  SetSel(IDC_RUN_FILTER, 0);
+  HWND runs = Make(L"LISTBOX", L"",
+                   WS_TABSTOP | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS,
+                   256, 160, 254, 202, IDC_RUN_LIST);
+  ApplyDarkControlTheme(runs, L"DarkMode_Explorer");
+  Button(IDC_RUN_FILE, T(L"Mostra file"), 256, 370, 124, kRowH + 2, ui::col::Panel);
+  Button(IDC_RUN_DELETE, T(L"Elimina"), 386, 370, 124, kRowH + 2, ui::col::Panel);
+  Panel(T(L"Opzioni"), 248, 456, 270, 122);
+  Label(T(L"Durata"), 264, 466, 60);
+  Combo(IDC_BENCH_SECONDS, 326, 466, 184, kBenchSecondsNames);
+  Check(IDC_SESSION_LOG, T(L"Riepilogo di ogni partita"), 264, 504, 246);
+  Check(IDC_SESSION_NOTIFY, T(L"Notifica a fine partita"), 264, 536, 246);
+  Panel(T(L"Dettagli"), 538, 116, 438, 462);
+  Make(ui::kBenchViewClass, L"", 0, 548, 126, 418, 398, IDC_RUN_VIEW);
+  Label(T(L"Confronta con"), 554, 540, 92);
+  static const wchar_t* const kNoItems[] = {L""};
+  Combo(IDC_RUN_COMPARE, 654, 540, 310, kNoItems);
+  ui::BenchPageInit({runs, Item(IDC_RUN_FILTER), Item(IDC_RUN_COMPARE), Item(IDC_RUN_VIEW), Item(IDC_RUN_DELETE),
+                     Item(IDC_RUN_FILE)});
   g_buildPage = -1;
 }
 
@@ -1181,6 +1248,7 @@ void ShowPage(int p) {
   for (int i = 0; i < kPageCount; ++i) InvalidateRect(Item(IDC_NAV_BASE + i), nullptr, FALSE);
   InvalidateRect(g.wnd, nullptr, FALSE);
   if (p == 1) QueuePreview();
+  if (p == kPageBenchmark) ui::BenchPageReload();  // le registrazioni fatte nel frattempo
 }
 
 // ------------------------------------------------------------------ disegno
@@ -1295,6 +1363,12 @@ void Paint(HDC dc, const RECT& client) {
   ui::FillCircle(dc, pill.left + S(17), (pill.top + pill.bottom) / 2, S(4), stateColor, stateColor);
   DrawTextAt(dc, state, {pill.left + S(29), pill.top, pill.right - S(10), pill.bottom}, g.fontBold, stateColor,
              DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
+
+  // Riga sottile che stacca Benchmark dalle sezioni di impostazioni.
+  const RECT navSep = SR({24, NavY(kPageBenchmark) - 9, 200, NavY(kPageBenchmark) - 8});
+  HBRUSH navLine = CreateSolidBrush(ui::col::Line);
+  FillRect(dc, &navSep, navLine);
+  DeleteObject(navLine);
 
   // Intestazione della sezione.
   // Icona nel suo quadrato tinto del colore d'accento, titolo, descrizione; a destra la traccia degli FPS.
@@ -1430,12 +1504,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_MEASUREITEM: {
       auto* m = reinterpret_cast<MEASUREITEMSTRUCT*>(lp);
-      if (m->CtlType == ODT_LISTBOX) m->itemHeight = UINT(S(32));
+      if (m->CtlType == ODT_LISTBOX) m->itemHeight = UINT(S(m->CtlID == IDC_RUN_LIST ? 46 : 32));
       return TRUE;
     }
     case WM_DRAWITEM: {
       auto* d = reinterpret_cast<const DRAWITEMSTRUCT*>(lp);
-      if (d->CtlType == ODT_LISTBOX) {
+      if (d->CtlType == ODT_LISTBOX && d->CtlID == IDC_RUN_LIST) {
+        ui::BenchPageDrawItem(d);
+      } else if (d->CtlType == ODT_LISTBOX) {
         DrawProfileItem(d);
       } else if (d->CtlType == ODT_BUTTON) {
         const int ci = int(d->CtlID) - IDC_COLOR_BTN;
@@ -1476,7 +1552,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_CTLCOLORLISTBOX: {
       HDC dc = reinterpret_cast<HDC>(wp);
       SetTextColor(dc, ui::col::Text);
-      if (reinterpret_cast<HWND>(lp) == Item(IDC_LIST)) {
+      if (reinterpret_cast<HWND>(lp) == Item(IDC_LIST) || reinterpret_cast<HWND>(lp) == Item(IDC_RUN_LIST)) {
         SetBkColor(dc, ui::col::Panel);
         return reinterpret_cast<LRESULT>(g.brPanel);
       }
@@ -1510,13 +1586,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       }
       if (id == IDC_LIST && code == LBN_SELCHANGE) {
         OnSelectProfile();
+      } else if (id == IDC_RUN_LIST && code == LBN_SELCHANGE) {
+        ui::BenchPageListChanged();
+      } else if (id == IDC_RUN_FILTER && code == CBN_SELCHANGE) {
+        ui::BenchPageReload();
+      } else if (id == IDC_RUN_COMPARE && code == CBN_SELCHANGE) {
+        ui::BenchPageCompareChanged();
       } else if (id == IDC_LANG && code == CBN_SELCHANGE) {
         OnChangeLanguage();
       } else if (id == IDC_POSITION && code == CBN_SELCHANGE) {
         const bool custom = GetSel(IDC_POSITION) == 4;
         EnableField(IDC_X, custom);
         EnableField(IDC_Y, custom);
-      } else if (code == BN_CLICKED && id >= IDC_HK_BTN && id < IDC_HK_BTN + 3) {
+      } else if (code == BN_CLICKED && id >= IDC_HK_BTN && id < IDC_HK_BTN + kHotkeyCount) {
         const int edit = kHotkeyIds[id - IDC_HK_BTN];
         if (g_capturing == edit) {
           EndCapture(false);
@@ -1581,6 +1663,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
               }
             }
             break;
+          case IDC_RUN_DELETE:
+            if (ui::BenchPageDelete(hwnd)) Status(T(L"Registrazione eliminata."));
+            break;
+          case IDC_RUN_FILE: ui::BenchPageShowFile(); break;
           case IDC_NEW: OnNewProfile(); break;
           case IDC_DELETE: OnDeleteProfile(); break;
           case IDC_EXPORT_ONE:
@@ -1622,6 +1708,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       }
       return 0;
     }
+    case WM_ACTIVATE:  // tornando alla finestra dopo una partita, l'elenco mostra anche quella
+      if (LOWORD(wp) != WA_INACTIVE && g.page == kPageBenchmark && Item(IDC_RUN_LIST)) ui::BenchPageReload();
+      break;
     case kMsgRefreshPreview:
       g.previewQueued = false;
       UpdatePreview();
@@ -1720,6 +1809,7 @@ void Relayout(int clientW, int clientH) {
   if (rescale) {
     ApplyComboHeights();
     if (HWND list = Item(IDC_LIST)) SendMessageW(list, LB_SETITEMHEIGHT, 0, S(32));
+    if (HWND runs = Item(IDC_RUN_LIST)) SendMessageW(runs, LB_SETITEMHEIGHT, 0, S(46));
   }
   // Le combobox modificabili (font) selezionano il testo quando cambiano dimensione: lo deselezioniamo.
   const HWND focus = GetFocus();
@@ -1748,6 +1838,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   ui::Init(inst);
   ui::RegisterColorWheel(inst);
   ui::RegisterOverlayPreview(inst);
+  ui::RegisterBenchView(inst);
   g.fontIcon = MakeIconFont();
   g.fontIconBig = MakeIconFont(21);
   g.font = MakeFont(95, FW_NORMAL);

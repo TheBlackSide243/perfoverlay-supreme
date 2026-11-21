@@ -14,11 +14,11 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 
 **[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con l'anteprima dell'overlay mentre lo modifichi e il colore dell'interfaccia a scelta dalla ruota colori.
+**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con l'anteprima dell'overlay mentre lo modifichi, e la sezione Benchmark con le registrazioni delle prestazioni.
 
 <p>
   <img src="docs/images/settings-aspetto.png" alt="Finestra delle impostazioni, sezione Aspetto overlay con l'anteprima" width="49%">
-  <img src="docs/images/settings-tema.png" alt="Finestra delle impostazioni, sezione Tema con la ruota colori" width="49%">
+  <img src="docs/images/settings-benchmark.png" alt="Finestra delle impostazioni, sezione Benchmark con due registrazioni a confronto" width="49%">
 </p>
 
 **Overlay** sopra la scena di prova integrata:
@@ -46,6 +46,8 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
   - VRAM della scheda e VRAM occupata dal solo gioco;
   - opzionali: HWiNFO, oppure [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) scaricabile con un clic per la temperatura CPU.
 - **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
+- **Benchmark**: con Ctrl+Shift+B registri le prestazioni del gioco (FPS medi, 1% e 0,1% low, stutter, utilizzo e temperature, tempo di ogni frame in CSV) e confronti due registrazioni con numeri e grafico.
+- **Riepilogo di ogni partita**: quando chiudi un gioco una notifica dice quanto hai giocato, con FPS medi, 1% low e temperature massime; lo storico resta nella sezione Benchmark.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
 - **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › Generali › "Lingua / Language". La prima volta segue la lingua di Windows.
 - **Anteprima dell'overlay nelle impostazioni**: in Aspetto overlay vedi subito l'effetto di font, dimensione, opacità, colori, elementi e posizione, prima di salvare.
@@ -63,6 +65,7 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 | Ctrl+Shift+O | mostra / nascondi |
 | Ctrl+Shift+P | cambia profilo |
 | Ctrl+Shift+F | solo FPS |
+| Ctrl+Shift+B | avvia / ferma un benchmark (solo in gioco) |
 
 Le hotkey si cambiano nelle impostazioni.
 

@@ -32,8 +32,11 @@ constexpr UINT_PTR kTimerUpdate = 2;
 constexpr UINT kFirstUpdateCheckMs = 60 * 1000;          // un minuto dopo l'avvio
 constexpr UINT kUpdateCheckEveryMs = 6 * 60 * 60 * 1000;  // poi ogni 6 ore
 constexpr ULONGLONG kToastMs = 2000;
+constexpr double kMinSessionSeconds = 60;    // partite più corte non lasciano un riepilogo
+constexpr double kMaxBenchmarkSeconds = 3600;  // oltre un'ora il benchmark si ferma da solo
+constexpr size_t kKeepSessions = 200;        // riepiloghi di partita conservati (i benchmark restano tutti)
 
-enum HotkeyId { kHkToggle = 1, kHkCycle, kHkFpsOnly };
+enum HotkeyId { kHkToggle = 1, kHkCycle, kHkFpsOnly, kHkBenchmark };
 enum MenuId : UINT {
   kMenuToggle = 100,
   kMenuFpsOnly,
@@ -44,6 +47,31 @@ enum MenuId : UINT {
   kMenuAuto = 200,
   kMenuProfileBase = 201,  // + indice profilo
 };
+
+int64_t QpcNow() {
+  LARGE_INTEGER t;
+  QueryPerformanceCounter(&t);
+  return t.QuadPart;
+}
+
+// 75 → "1:15", 3720 → "1:02:00"
+std::wstring ClockText(double seconds) {
+  const int s = int(seconds);
+  return s >= 3600 ? std::format(L"{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
+                   : std::format(L"{}:{:02}", s / 60, s % 60);
+}
+
+// Nome mostrato nelle registrazioni: il titolo della finestra. Quello della scena di prova cambia a ogni
+// secondo (ci scrive gli FPS), quindi lì si usa un nome fisso.
+std::string RunTitle(const ForegroundInfo& fg) {
+  return fg.windowClass == "PerfOverlayTestWindow" ? std::string("PerfOverlay Test") : fg.title;
+}
+
+// 5040 → "1 h 24 min"
+std::wstring DurationText(double seconds) {
+  const int m = std::max(1, int(seconds / 60.0 + 0.5));
+  return m >= 60 ? std::format(L"{} h {} min", m / 60, m % 60) : std::format(L"{} min", m);
+}
 
 }  // namespace
 
@@ -93,6 +121,8 @@ int App::Run(HINSTANCE inst, bool justUpdated) {
 
   KillTimer(wnd_, kTimerTick);
   KillTimer(wnd_, kTimerUpdate);
+  if (bench_.Active()) StopBenchmark();  // quello che è stato registrato non va perso
+  if (session_.Active()) EndSession(false);
   UnregisterHotkeys();
   RemoveTray();
   overlay_.Show(false);
@@ -136,6 +166,7 @@ LRESULT App::Handle(UINT msg, WPARAM wp, LPARAM lp) {
       if (wp == kHkToggle) ToggleVisibility();
       if (wp == kHkCycle) CycleProfile();
       if (wp == kHkFpsOnly) ToggleFpsOnly();
+      if (wp == kHkBenchmark) ToggleBenchmark();
       return 0;
     case kMsgTray:
       if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_CONTEXTMENU) ShowTrayMenu();
@@ -214,14 +245,169 @@ void App::RegisterHotkeys() {
     if (!RegisterHotKey(wnd_, id, mods | MOD_NOREPEAT, vk))
       LogWarn("Hotkey '{}' già usata da un altro programma", *text);
   }
+  UpdateBenchmarkHotkey();
 }
 
 void App::UnregisterHotkeys() {
   hotkeysActive_ = false;
   for (int id : {kHkToggle, kHkCycle, kHkFpsOnly}) UnregisterHotKey(wnd_, id);
+  UpdateBenchmarkHotkey();
+}
+
+// La hotkey del benchmark serve solo in gioco: fuori resta libera per gli altri programmi
+// (Ctrl+Shift+B nei browser mostra la barra dei preferiti).
+void App::UpdateBenchmarkHotkey() {
+  const bool want = hotkeysActive_ && !cfg_.hotkeyBenchmark.empty() && (lastGamePid_ || bench_.Active());
+  if (want == benchHotkeyOn_) return;
+  benchHotkeyOn_ = want;
+  if (!want) {
+    UnregisterHotKey(wnd_, kHkBenchmark);
+    return;
+  }
+  unsigned mods, vk;
+  if (!ParseHotkey(cfg_.hotkeyBenchmark, mods, vk))
+    LogWarn("Hotkey non valida: '{}'", cfg_.hotkeyBenchmark);
+  else if (!RegisterHotKey(wnd_, kHkBenchmark, mods | MOD_NOREPEAT, vk))
+    LogWarn("Hotkey '{}' già usata da un altro programma", cfg_.hotkeyBenchmark);
+}
+
+RunSummary App::MakeRunMeta(const char* kind, const ForegroundInfo& fg, const SystemSnapshot& sys) const {
+  RunSummary m;
+  m.kind = kind;
+  m.game = fg.exe;
+  m.title = RunTitle(fg);
+  m.api = frames_.Api(fg.pid);
+  m.time = LocalTimeString();
+  m.gpuName = sys.gpu.name;
+  m.cpuName = sys.cpu.name;
+  m.width = fg.client.right - fg.client.left;
+  m.height = fg.client.bottom - fg.client.top;
+  return m;
+}
+
+// Passa ai registratori i frame nuovi del gioco in primo piano e una lettura dei sensori.
+void App::UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys) {
+  const DWORD game = isGame && framesOk_ ? fg.pid : 0;
+  SensorSample smp;
+  if (sys.ready) {
+    smp.cpu = sys.cpu.usage.value_or(-1);
+    smp.gpu = sys.gpu.usage.value_or(-1);
+    smp.cpuTemp = sys.cpuTempC.value_or(-1);
+    smp.gpuTemp = sys.gpu.tempC.value_or(-1);
+    smp.gpuPower = sys.gpu.powerW.value_or(-1);
+    smp.ramGB = sys.ram.usedGB > 0 ? sys.ram.usedGB : -1;
+    smp.vramGB = sys.gpu.vramUsedGB.value_or(-1);
+  }
+  const int w = fg.client.right - fg.client.left, h = fg.client.bottom - fg.client.top;
+
+  if (bench_.Active()) {
+    if (game != benchPid_) {  // il gioco ha perso il primo piano o si è chiuso
+      StopBenchmark();
+    } else {
+      bench_.AddFrames(frames_.Since(benchPid_, bench_.LastTimestamp()));
+      bench_.AddSample(smp);
+      bench_.SetApi(frames_.Api(benchPid_));
+      const double limit = cfg_.benchmarkSeconds > 0 ? double(cfg_.benchmarkSeconds) : kMaxBenchmarkSeconds;
+      if (bench_.Seconds() >= limit) StopBenchmark();
+    }
+  }
+
+  if (session_.Active() && (!cfg_.sessionLog || (game && game != sessionPid_))) EndSession(cfg_.sessionLog);
+  if (game && !session_.Active() && cfg_.sessionLog) {
+    RunRecorder::Options o;
+    o.step = 10;
+    o.maxFrameMs = 1000;  // pause e caricamenti non sono frame lenti
+    session_.Start(o, MakeRunMeta("session", fg, sys), frames_.Frequency(), QpcNow());
+    sessionPid_ = game;
+    sessionProc_ = OpenProcess(SYNCHRONIZE, FALSE, game);
+    sessionSeen_ = GetTickCount64();
+  }
+  if (session_.Active()) {
+    if (game == sessionPid_) {
+      session_.AddFrames(frames_.Since(sessionPid_, session_.LastTimestamp()));
+      session_.AddSample(smp);
+      session_.SetWindow(RunTitle(fg), w, h);
+      session_.SetApi(frames_.Api(sessionPid_));  // all'inizio il gioco può non aver ancora presentato un frame
+      sessionSeen_ = GetTickCount64();
+    } else {
+      session_.SkipTo(QpcNow());  // fuori dal gioco (Alt+Tab): la partita è in pausa
+      const bool gone = sessionProc_ ? WaitForSingleObject(sessionProc_, 0) == WAIT_OBJECT_0
+                                     : GetTickCount64() - sessionSeen_ > 60000;
+      if (gone) EndSession(true);
+    }
+  }
+  UpdateBenchmarkHotkey();
+}
+
+void App::ToggleBenchmark() {
+  if (bench_.Active()) {
+    StopBenchmark();
+    return;
+  }
+  const ForegroundInfo fg = QueryForeground();
+  if (!framesOk_ || !lastGamePid_ || !fg.valid || fg.pid != lastGamePid_) {
+    ShowToast(T(L"Benchmark: nessun gioco in primo piano"));
+    return;
+  }
+  RunRecorder::Options o;
+  o.keepFrames = true;
+  bench_.Start(o, MakeRunMeta("benchmark", fg, stats_.Get()), frames_.Frequency(), QpcNow());
+  benchPid_ = fg.pid;
+  LogInfo("Benchmark avviato su {} (pid {})", fg.exe.empty() ? "?" : fg.exe, fg.pid);
+  if (!inTick_) Tick();
+}
+
+void App::StopBenchmark() {
+  RunData run = bench_.Finish();
+  benchPid_ = 0;
+  if (run.s.seconds < 2 || run.s.frames < 10) {
+    LogInfo("Benchmark troppo breve ({:.1f} s): non salvato", run.s.seconds);
+    ShowToast(T(L"Benchmark troppo breve: non salvato"), 4000);
+    return;
+  }
+  run.s.id = MakeRunId(run.s);
+  if (!SaveRun(run)) {
+    LogWarn("Benchmark non salvato: impossibile scrivere {}", ToUtf8(RunJsonPath(run.s.id).wstring()));
+    ShowToast(T(L"Benchmark non salvato: vedi il log"), 4000);
+    return;
+  }
+  LogInfo("Benchmark salvato: {} ({:.1f} s, {} frame, media {:.1f} FPS, 1% low {:.1f})", run.s.id, run.s.seconds,
+          run.s.frames, run.s.fpsAvg, run.s.low1);
+  ShowToast(TF(L"Benchmark salvato: media {} FPS, 1% low {}", int(run.s.fpsAvg + 0.5), int(run.s.low1 + 0.5)), 6000);
+}
+
+// Chiude la partita: salva il riepilogo e, se richiesto, lo mostra in una notifica.
+void App::EndSession(bool notify) {
+  RunData run = session_.Finish();
+  if (sessionProc_) CloseHandle(sessionProc_);
+  sessionProc_ = nullptr;
+  sessionPid_ = 0;
+  if (run.s.seconds < kMinSessionSeconds || run.s.frames < 100) return;
+  run.s.id = MakeRunId(run.s);
+  if (!SaveRun(run)) {
+    LogWarn("Riepilogo della partita non salvato: impossibile scrivere {}", ToUtf8(RunJsonPath(run.s.id).wstring()));
+    return;
+  }
+  PruneSessions(kKeepSessions);
+  LogInfo("Partita finita: {} ({:.0f} s, media {:.1f} FPS, 1% low {:.1f})", run.s.id, run.s.seconds, run.s.fpsAvg,
+          run.s.low1);
+  if (!notify || !cfg_.sessionNotify) return;
+  std::wstring name = ToWide(run.s.DisplayName());
+  if (name.size() > 36) name = name.substr(0, 35) + L"…";
+  std::wstring text = TF(L"Media {} FPS, 1% low {}.", int(run.s.fpsAvg + 0.5), int(run.s.low1 + 0.5));
+  if (run.s.gpuTempMax > 0) text += L" " + TF(L"GPU fino a {} °C.", int(run.s.gpuTempMax + 0.5));
+  if (run.s.cpuTempMax > 0) text += L" " + TF(L"CPU fino a {} °C.", int(run.s.cpuTempMax + 0.5));
+  text += std::wstring(L" ") + T(L"I dettagli sono in Impostazioni › Benchmark.");
+  ShowTrayBalloon(name + L": " + DurationText(run.s.seconds), text);
 }
 
 void App::Tick() {
+  struct Guard {
+    bool& flag;
+    bool was;
+    explicit Guard(bool& f) : flag(f), was(f) { flag = true; }
+    ~Guard() { flag = was; }
+  } guard(inTick_);
   const ForegroundInfo fg = QueryForeground();
   stats_.SetWatchPid(fg.valid ? fg.pid : 0);
   const SystemSnapshot sys = stats_.Get();
@@ -244,6 +430,7 @@ void App::Tick() {
   }
   lastGamePid_ = isGame ? fg.pid : 0;
   stats_.SetGamePid(lastGamePid_);
+  UpdateRecorders(fg, isGame, sys);
 
   enum class Mode { None, Game, Compact } mode = Mode::None;
   if (isGame)
@@ -277,7 +464,13 @@ void App::Tick() {
   in.system = &sys;
   in.fpsOnly = cfg_.fpsOnly && mode == Mode::Game;
   in.frameSourceAvailable = framesOk_;
-  if (GetTickCount64() < toastUntil_) in.toast = toast_;
+  if (GetTickCount64() < toastUntil_) {
+    in.toast = toast_;
+  } else if (bench_.Active()) {  // registrazione in corso: pallino rosso e tempo trascorso
+    in.toast = L"● REC " + ClockText(bench_.Seconds());
+    if (cfg_.benchmarkSeconds > 0) in.toast += L" / " + ClockText(cfg_.benchmarkSeconds);
+    in.toastAlert = true;
+  }
 
   RECT anchor = fg.valid ? (mode == Mode::Game ? fg.client : fg.work) : RECT{};
   if (!fg.valid || anchor.right <= anchor.left) {
@@ -329,7 +522,8 @@ void App::Tick() {
       blocks.push_back({std::move(row), item.x, item.y, item.scale / 100.0f});
     }
     if (!in.toast.empty() && !blocks.empty()) {  // messaggi temporanei sopra il blocco più in alto
-      Row toast{Segment{Segment::Kind::Text, in.toast, profile.colors.text, 0.8f}};
+      Row toast{Segment{Segment::Kind::Text, in.toast, in.toastAlert ? Color{0xFF, 0x4A, 0x4A} : profile.colors.text,
+                        0.8f, in.toastAlert}};
       blocks.push_back({std::move(toast), topX, std::max(0, topY - 40), 1.0f});
     }
     if (blocks.empty()) {
@@ -447,10 +641,10 @@ void App::ForceProfile(const std::string& name) {
   ShowToast(name.empty() ? T(L"Profilo: automatico") : T(L"Profilo: ") + ToWide(name));
 }
 
-void App::ShowToast(const std::wstring& text) {
+void App::ShowToast(const std::wstring& text, ULONGLONG ms) {
   toast_ = text;
-  toastUntil_ = GetTickCount64() + kToastMs;
-  Tick();
+  toastUntil_ = GetTickCount64() + (ms ? ms : kToastMs);
+  if (!inTick_) Tick();  // subito sullo schermo; se arriva da dentro Tick lo mostra il giro in corso
 }
 
 // L'overlay è una finestra a parte: sopra un gioco in fullscreen esclusivo (D3D) Windows non la

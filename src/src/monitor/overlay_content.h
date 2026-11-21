@@ -16,6 +16,7 @@ struct ContentInput {
   bool fpsOnly = false;
   bool frameSourceAvailable = true;
   std::wstring toast;                     // messaggio temporaneo (es. cambio profilo)
+  bool toastAlert = false;                // messaggio in rosso (registrazione in corso)
 };
 
 // Traduce le metriche in righe di segmenti. Ordine: FPS, frame time, CPU, GPU, RAM, batteria.

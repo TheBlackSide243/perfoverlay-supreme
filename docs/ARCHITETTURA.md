@@ -40,10 +40,11 @@ src/
     overlay_test.cpp      scena di prova DX11/DX12 (--test)
     rtss_preview.cpp      anteprima di un preset RTSS con dati di esempio (target rtss-preview)
     close-monitor.ps1     chiude l'overlay prima di ricompilare
-  src/common/             config, profili, export/import, preset RTSS, feed sensori, LHM, log, percorsi
+  src/common/             config, profili, export/import, preset RTSS, feed sensori, LHM, log, percorsi,
+                          registrazioni (benchmark.*: RunRecorder, file JSON/CSV)
   src/monitor/
     main.cpp              dispatcher delle modalità
-    app.*                 ciclo principale, tray, hotkey, selezione profilo
+    app.*                 ciclo principale, tray, hotkey, selezione profilo, benchmark e riepilogo delle partite
     frame_source.*        FPS via ETW
     game_detector.*       rilevamento gioco (lista + euristica + auto-apprendimento)
     overlay_window.*      renderer D3D11 + DirectComposition + Direct2D/DirectWrite
@@ -60,6 +61,7 @@ src/
     color_wheel.*         ruota colori (anello tonalità + quadrato saturazione/luminosità) della sezione Tema
     overlay_preview.*     anteprima dell'overlay nella sezione Aspetto overlay: BuildRows con valori d'esempio e
                           DrawRowsPreview (monitor/overlay_window.cpp), cioè lo stesso disegno dell'overlay vero
+    benchmark_page.*      sezione Benchmark: lista delle registrazioni, riquadri, grafico (GDI+) e confronto
     layout_editor.*       editor del layout libero e dei preset RTSS semplici
     sensor_browser.*      browser dei sensori
     games_editor.*        lista giochi (Steam / Epic / GOG / programmi aperti)
@@ -115,6 +117,15 @@ Aggiornamento automatico (`autoUpdate`, "Aggiornamenti: Automatici"): lo fa l'ov
   - posizioni assolute e condizioni.
 - **Scala**: la scala di RTSS è `k = zoom × scala UI × dimensione/15`.
 
+## Benchmark e riepilogo delle partite
+
+`RunRecorder` (`common/benchmark.*`) riceve i timestamp dei frame di un processo e una lettura dei sensori a ogni giro di `App::Tick`. I frame arrivano da `FrameSource::Since(pid, ultimo)`, che restituisce solo quelli nuovi.
+
+- **Niente frame in memoria per le partite**: una partita può durare ore, quindi i percentili escono da un istogramma dei frame time (passo 0,05 ms, fino a 1 s). I benchmark tengono anche l'elenco completo dei frame, da cui i percentili sono esatti e che finisce nel CSV.
+- **Benchmark** (`App::ToggleBenchmark`, hotkey registrata solo con un gioco in primo piano): si ferma con la hotkey, alla durata scelta, dopo un'ora o quando il gioco perde il primo piano.
+- **Partita** (`App::UpdateRecorders`, `EndSession`): parte quando un gioco va in primo piano e finisce quando il suo processo termina. Con il gioco in secondo piano `SkipTo` scarta i frame presentati nel frattempo; i frame oltre 1 s (pause, caricamenti) non si contano. Sotto i 60 secondi non si salva niente.
+- **Impostazioni**: `settings/benchmark_page.*` legge i file con `ListRuns` e carica i frame dal CSV solo per la registrazione mostrata.
+
 ## File di configurazione
 
 Tutto si trova in `%APPDATA%\PerfOverlay Supreme\`:
@@ -126,6 +137,8 @@ Tutto si trova in `%APPDATA%\PerfOverlay Supreme\`:
 | `profiles\<Nome>.json` | un file per profilo; `default.json` è il fallback |
 | `presets\` | preset RTSS importati, con immagini e font |
 | `downloads\` | pacchetti scaricati dallo store |
+| `benchmarks\<data>-b-<gioco>.json` | una registrazione: riepilogo e serie di FPS, CPU e GPU (`-b-` = benchmark, `-s-` = partita) |
+| `benchmarks\<...>.csv` | solo benchmark: una riga per frame (`frame`, `time_s`, `frametime_ms`) |
 | `overlay.log` | log di debug (ruota a 5 MB) |
 
 LibreHardwareMonitor, se installato dalle impostazioni, si trova in `%LOCALAPPDATA%\PerfOverlay Supreme\LibreHardwareMonitor`.

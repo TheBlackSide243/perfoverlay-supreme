@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "common/benchmark.h"
 #include "common/config.h"
 #include "settings/updater.h"
 #include "monitor/frame_source.h"
@@ -37,7 +38,13 @@ class App {
   void ToggleFpsOnly();
   void CycleProfile();
   void ForceProfile(const std::string& name);
-  void ShowToast(const std::wstring& text);
+  void ShowToast(const std::wstring& text, ULONGLONG ms = 0);  // ms = 0: durata normale
+  void UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys);
+  void UpdateBenchmarkHotkey();  // la hotkey del benchmark è attiva solo con un gioco in primo piano
+  void ToggleBenchmark();
+  void StopBenchmark();
+  void EndSession(bool notify);
+  RunSummary MakeRunMeta(const char* kind, const ForegroundInfo& fg, const SystemSnapshot& sys) const;
   void CheckExclusiveFullscreen(const ForegroundInfo& fg);
   void ShowTrayBalloon(const std::wstring& title, const std::wstring& text);
   void OpenSettings();
@@ -70,6 +77,15 @@ class App {
   DWORD lastGamePid_ = 0;
   std::set<std::string> fullscreenHinted_;  // giochi già avvisati del fullscreen esclusivo (per sessione)
   std::string lastProfile_;
+  bool inTick_ = false;
+
+  RunRecorder bench_;             // benchmark avviato con la hotkey
+  DWORD benchPid_ = 0;
+  bool benchHotkeyOn_ = false;
+  RunRecorder session_;           // riepilogo della partita in corso
+  DWORD sessionPid_ = 0;
+  HANDLE sessionProc_ = nullptr;  // per accorgersi che il gioco si è chiuso
+  ULONGLONG sessionSeen_ = 0;     // ultima volta in cui il gioco era in primo piano
 
   bool updateBusy_ = false;              // controllo/download in corso
   bool updateFailed_ = false;            // installazione impossibile (cartella protetta): non si riprova

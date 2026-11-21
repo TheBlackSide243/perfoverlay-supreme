@@ -13,6 +13,7 @@
 - [Temperatura CPU](#temperatura-cpu)
 - [Prova dell'overlay (DirectX 11 / 12)](#prova-delloverlay-directx-11--12)
 - [Hotkey](#hotkey)
+- [Benchmark e riepilogo delle partite](#benchmark-e-riepilogo-delle-partite)
 - [Lingua](#lingua)
 - [Aggiornamenti](#aggiornamenti)
 - [Amministratore e FPS](#amministratore-e-fps)
@@ -24,7 +25,7 @@
 Tutto è in un solo file, `PerfOverlaySupreme.exe`: overlay, impostazioni, editor, store e finestra di prova.
 
 - **Doppio clic**: avvia l'overlay. Chiede l'amministratore, che serve per gli FPS. Se l'overlay è già attivo, apre le **impostazioni**.
-- **Finestra delle impostazioni**: a sinistra la barra delle sezioni (Profili, Aspetto overlay, Elementi e sensori, Hotkey, Generali, Tema), a destra la sezione scelta. In fondo alla barra ci sono lo stato dell'overlay e, quando serve, "Avvia overlay" e "Aggiorna a vX.Y.Z"; "Salva e applica" è sempre in basso a destra. La finestra si può ridimensionare e massimizzare e tutto il contenuto scala con lei; all'apertura si adatta allo schermo e resta nitida anche su un monitor con scala diversa.
+- **Finestra delle impostazioni**: a sinistra la barra delle sezioni (Profili, Aspetto overlay, Elementi e sensori, Hotkey, Generali, Tema e, staccata dalle altre, Benchmark), a destra la sezione scelta. In fondo alla barra ci sono lo stato dell'overlay e, quando serve, "Avvia overlay" e "Aggiorna a vX.Y.Z"; "Salva e applica" è sempre in basso a destra. La finestra si può ridimensionare e massimizzare e tutto il contenuto scala con lei; all'apertura si adatta allo schermo e resta nitida anche su un monitor con scala diversa.
 - **Tema**: la sezione Tema cambia il colore d'accento della finestra. Si sceglie con la ruota colori (anello per la tonalità, quadrato per chiarezza e intensità; da tastiera frecce e PagSu/PagGiù), con uno dei sei colori pronti o scrivendo il codice (es. `#22D3EE`). Il colore si applica subito e resta con "Salva e applica"; "Predefinito" torna al blu. Un colore troppo scuro viene schiarito quanto basta per restare leggibile. Sotto la ruota, il riquadro "Anteprima" mostra un pulsante principale, un pulsante normale, una casella e un campo di testo con il colore scelto: si possono provare col mouse e non cambiano niente. "Usa nell'overlay..." dà lo stesso colore a un elemento dell'overlay (FPS, CPU, GPU, RAM, Batteria o Testo) nel profilo selezionato.
 
   ![Sezione Tema con la ruota colori](images/settings-tema.png)
@@ -169,8 +170,58 @@ Per aprire la scena di prova usa Tray › **"Test overlay (DirectX 11/12)"** opp
 | Ctrl+Shift+O | mostra / nascondi overlay |
 | Ctrl+Shift+P | cambia profilo (automatico → profili → automatico) |
 | Ctrl+Shift+F | modalità solo FPS |
+| Ctrl+Shift+B | avvia / ferma un benchmark |
 
-Si cambiano da Impostazioni › "Cambia" accanto alla hotkey.
+Si cambiano da Impostazioni › Hotkey › "Cambia" accanto alla hotkey. Quella del benchmark è attiva solo con un gioco in primo piano: fuori dai giochi la combinazione resta libera per gli altri programmi.
+
+## Benchmark e riepilogo delle partite
+
+Le registrazioni si trovano in Impostazioni › **Benchmark**, l'ultima voce della barra laterale.
+
+![Sezione Benchmark con due registrazioni a confronto](images/settings-benchmark.png)
+
+### Registrare un benchmark
+
+1. In gioco premi **Ctrl+Shift+B**. Nell'overlay compare in rosso "● REC" con il tempo trascorso.
+2. Premi di nuovo per fermare. In alternativa scegli una durata in Benchmark › Opzioni › "Durata" (30 secondi, 60 secondi, 2 o 5 minuti): la registrazione si ferma da sola.
+3. L'overlay mostra per qualche secondo FPS medi e 1% low, e la registrazione compare nella sezione Benchmark.
+
+Da sapere:
+
+- Se il gioco perde il primo piano o si chiude, il benchmark si ferma e si salva da solo.
+- Dopo un'ora si ferma comunque. Sotto i 2 secondi non viene salvato.
+- "● REC" si vede solo se l'overlay è visibile; la registrazione funziona anche con l'overlay nascosto.
+
+### Riepilogo di ogni partita
+
+Quando chiudi un gioco, l'overlay salva un riepilogo della partita (durata, FPS medi, 1% low, temperature massime) e lo mostra in una notifica. Non serve premere niente.
+
+- Le partite più corte di un minuto non lasciano un riepilogo.
+- Il tempo in cui il gioco non è in primo piano (Alt+Tab) non conta.
+- I frame più lunghi di un secondo sono pause o caricamenti e non contano.
+- Restano gli ultimi 200 riepiloghi. I benchmark restano finché non li elimini.
+
+In Benchmark › Opzioni puoi spegnere "Riepilogo di ogni partita" (non viene più salvato niente) oppure solo "Notifica a fine partita".
+
+### Leggere una registrazione
+
+| Riquadro | Cosa indica |
+|---|---|
+| FPS medi | frame registrati diviso il tempo |
+| 1% low, 0,1% low | FPS che corrispondono al frame time del 99° e del 99,9° percentile: quanto scende il gioco nei momenti peggiori |
+| Stutter | percentuale di frame più lunghi del doppio della mediana |
+| CPU media, GPU media | utilizzo medio durante la registrazione |
+| Temp. GPU max, Temp. CPU max | temperatura più alta raggiunta; "—" se il sensore manca (vedi [Temperatura CPU](#temperatura-cpu)) |
+
+Il grafico di un benchmark mostra il tempo di ogni frame: i picchi sono gli scatti. L'asse si ferma a tre volte il P99, quindi un singolo blocco molto lungo non schiaccia il resto. Per le partite il grafico mostra gli FPS nel tempo, un punto ogni 10 secondi.
+
+### Confrontare due registrazioni
+
+Scegli la seconda in "Confronta con" (prima compaiono quelle dello stesso gioco). Ogni riquadro mostra anche il valore dell'altra registrazione e la differenza in percentuale, verde se la registrazione scelta è migliore e rossa se è peggiore; il grafico le sovrappone con due colori.
+
+### File
+
+Ogni registrazione è un file `.json` in `%APPDATA%\PerfOverlay Supreme\benchmarks\`. I benchmark hanno accanto un `.csv` con una riga per frame (`frame`, `time_s`, `frametime_ms`), che si apre con Excel o LibreOffice. "Mostra file" apre la cartella sul file della registrazione scelta, "Elimina" la cancella.
 
 ## Lingua
 
@@ -212,6 +263,7 @@ Tutto si trova in `%APPDATA%\PerfOverlay Supreme\`:
 - `profiles\`
 - `presets\`
 - `downloads\`
+- `benchmarks\` (benchmark e riepiloghi delle partite)
 - `overlay.log`
 
 Per aprire la cartella dalle impostazioni: "Apri cartella dati".

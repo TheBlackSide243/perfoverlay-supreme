@@ -41,6 +41,10 @@ class FrameSource {
 
   FrameStats Query(DWORD pid, int windowSeconds) const;
   double PresentRate(DWORD pid) const;  // frame nell'ultimo secondo (per l'euristica giochi)
+  // Timestamp QPC dei frame del processo successivi ad "after", dal più vecchio (per le registrazioni).
+  std::vector<int64_t> Since(DWORD pid, int64_t after) const;
+  std::string Api(DWORD pid) const;
+  int64_t Frequency() const { return freq_; }
 
  private:
   struct Proc {

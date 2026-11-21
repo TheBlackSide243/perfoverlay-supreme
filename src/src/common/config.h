@@ -199,6 +199,10 @@ struct GlobalConfig {
   std::string hotkeyToggle = "Ctrl+Shift+O";
   std::string hotkeyCycleProfile = "Ctrl+Shift+P";
   std::string hotkeyFpsOnly = "Ctrl+Shift+F";
+  std::string hotkeyBenchmark = "Ctrl+Shift+B";  // avvia / ferma la registrazione di un benchmark
+  int benchmarkSeconds = 0;           // durata del benchmark; 0 = finché non si ripreme la hotkey
+  bool sessionLog = true;             // salva un riepilogo di ogni partita
+  bool sessionNotify = true;          // notifica con il riepilogo quando il gioco si chiude
   bool fpsOnly = false;
   std::string outOfGame = "hide";     // hide | compact
   bool autostart = false;

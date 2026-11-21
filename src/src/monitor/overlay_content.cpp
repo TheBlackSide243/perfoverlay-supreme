@@ -213,8 +213,12 @@ void AddSensor(Builder& b, const Profile& p, const SystemSnapshot& s, const Sens
 
 std::vector<Row> BuildSensorRows(const ContentInput& in) {
   std::vector<Row> rows;
-  if (in.fpsOnly || !in.system->ready) return rows;
   Builder b(*in.profile);
+  if (!in.toast.empty()) {  // messaggi e registrazione in corso: visibili anche con un preset RTSS
+    b.Colored(in.toast, in.toastAlert ? kRed : in.profile->colors.text, 0.8f, in.toastAlert);
+    rows.push_back(b.Take());
+  }
+  if (in.fpsOnly || !in.system->ready) return rows;
   for (const auto& sp : in.profile->sensors) {
     AddSensor(b, *in.profile, *in.system, sp);
     rows.push_back(b.Take());
@@ -261,7 +265,7 @@ std::vector<Row> BuildRows(const ContentInput& in) {
   Builder b(p);
 
   if (!in.toast.empty()) {
-    b.Colored(in.toast, p.colors.text, 0.8f);
+    b.Colored(in.toast, in.toastAlert ? kRed : p.colors.text, 0.8f, in.toastAlert);
     rows.push_back(b.Take());
   }
 

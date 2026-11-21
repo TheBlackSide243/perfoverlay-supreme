@@ -190,6 +190,20 @@ double FrameSource::PresentRate(DWORD pid) const {
   return double(ts.end() - std::upper_bound(ts.begin(), ts.end(), from));
 }
 
+std::vector<int64_t> FrameSource::Since(DWORD pid, int64_t after) const {
+  std::lock_guard lock(mu_);
+  const auto it = procs_.find(pid);
+  if (it == procs_.end()) return {};
+  const auto& ts = it->second.ts;
+  return {std::upper_bound(ts.begin(), ts.end(), after), ts.end()};
+}
+
+std::string FrameSource::Api(DWORD pid) const {
+  std::lock_guard lock(mu_);
+  const auto it = procs_.find(pid);
+  return it == procs_.end() ? std::string() : it->second.api;
+}
+
 FrameStats FrameSource::Query(DWORD pid, int windowSeconds) const {
   FrameStats s;
   std::vector<int64_t> ts;

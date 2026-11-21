@@ -326,6 +326,10 @@ void to_json(json& j, const GlobalConfig& c) {
            {"hotkeyToggle", c.hotkeyToggle},
            {"hotkeyCycleProfile", c.hotkeyCycleProfile},
            {"hotkeyFpsOnly", c.hotkeyFpsOnly},
+           {"hotkeyBenchmark", c.hotkeyBenchmark},
+           {"benchmarkSeconds", c.benchmarkSeconds},
+           {"sessionLog", c.sessionLog},
+           {"sessionNotify", c.sessionNotify},
            {"fpsOnly", c.fpsOnly},
            {"outOfGame", c.outOfGame},
            {"autostart", c.autostart},
@@ -344,6 +348,10 @@ void from_json(const json& j, GlobalConfig& c) {
   Get(j, "hotkeyToggle", c.hotkeyToggle);
   Get(j, "hotkeyCycleProfile", c.hotkeyCycleProfile);
   Get(j, "hotkeyFpsOnly", c.hotkeyFpsOnly);
+  Get(j, "hotkeyBenchmark", c.hotkeyBenchmark);
+  Get(j, "benchmarkSeconds", c.benchmarkSeconds);
+  Get(j, "sessionLog", c.sessionLog);
+  Get(j, "sessionNotify", c.sessionNotify);
   Get(j, "fpsOnly", c.fpsOnly);
   Get(j, "outOfGame", c.outOfGame);
   Get(j, "autostart", c.autostart);
@@ -444,6 +452,7 @@ void Sanitize(Profile& p) {
 void Sanitize(GlobalConfig& c) {
   c.refreshMs = std::clamp(c.refreshMs, 100, 5000);
   c.graphSeconds = std::clamp(c.graphSeconds, 10, 300);
+  c.benchmarkSeconds = std::clamp(c.benchmarkSeconds, 0, 3600);
   OneOf(c.outOfGame, {"hide", "compact"});
   c.forcedProfile = Trim(c.forcedProfile);
 }
