@@ -14,10 +14,10 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 
 **[⬇ Scarica l'ultima versione](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con il colore dell'interfaccia a scelta dalla ruota colori della sezione Tema.
+**Impostazioni**: una sezione alla volta dalla barra laterale (profili, aspetto, elementi e sensori, hotkey, generali, tema), con l'anteprima dell'overlay mentre lo modifichi e il colore dell'interfaccia a scelta dalla ruota colori.
 
 <p>
-  <img src="docs/images/settings.png" alt="Finestra delle impostazioni, sezione Profili" width="49%">
+  <img src="docs/images/settings-aspetto.png" alt="Finestra delle impostazioni, sezione Aspetto overlay con l'anteprima" width="49%">
   <img src="docs/images/settings-tema.png" alt="Finestra delle impostazioni, sezione Tema con la ruota colori" width="49%">
 </p>
 
@@ -48,7 +48,8 @@ Un solo file, `PerfOverlaySupreme.exe`, senza installazione e **senza iniettare 
 - **Avviso fullscreen esclusivo**: se un gioco lo usa (lì l'overlay non si vede) arriva una notifica che consiglia la modalità senza bordi.
 - **Scena di prova DirectX 11/12** integrata, per provare l'overlay senza avviare un gioco.
 - **Interfaccia in italiano o inglese**: si sceglie in Impostazioni › Generali › "Lingua / Language". La prima volta segue la lingua di Windows.
-- **Colore dell'interfaccia a scelta**: in Impostazioni › Tema, con una ruota colori, sei colori pronti o il codice esadecimale.
+- **Anteprima dell'overlay nelle impostazioni**: in Aspetto overlay vedi subito l'effetto di font, dimensione, opacità, colori, elementi e posizione, prima di salvare.
+- **Colore dell'interfaccia a scelta**: in Impostazioni › Tema, con una ruota colori, sei colori pronti o il codice esadecimale; lo stesso colore si può dare a un elemento dell'overlay.
 - **Aggiornamento automatico**: l'overlay controlla GitHub ogni 6 ore e installa da solo le versioni nuove (mai durante una partita), poi si riavvia e lo segnala con una notifica. L'exe viene verificato (SHA-256) prima di sostituire quello in uso. In Impostazioni › "Aggiornamenti" si può scegliere anche "Solo avviso" (pulsante "Aggiorna a vX.Y.Z" nelle impostazioni) o "Disattivati".
 
 ## Download e uso

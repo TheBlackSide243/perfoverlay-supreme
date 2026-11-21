@@ -27,6 +27,7 @@
 #include "settings/gallery.h"
 #include "settings/games_editor.h"
 #include "settings/layout_editor.h"
+#include "settings/overlay_preview.h"
 #include "settings/sensor_browser.h"
 #include "settings/theme.h"
 #include "settings/updater.h"
@@ -88,6 +89,12 @@ enum : int {
   IDC_ACCENT_RESET,
   IDC_ACCENT_HEX,
   IDC_ACCENT_WHEEL,
+  IDC_ACCENT_TO_OVERLAY,
+  IDC_PREVIEW,       // anteprima dell'overlay (Aspetto overlay)
+  IDC_DEMO_PRIMARY,  // controlli d'esempio della sezione Tema: non fanno niente
+  IDC_DEMO_BUTTON,
+  IDC_DEMO_CHECK,
+  IDC_DEMO_EDIT,
   IDC_ACCENT_BASE = 1400,  // + indice colore predefinito dell'interfaccia
   IDC_NAV_BASE = 1500,     // + indice pagina della barra laterale
   IDC_HK_BTN = 1260,  // + indice hotkey (stesso ordine di IDC_HK_TOGGLE..)
@@ -126,7 +133,7 @@ const PageInfo kPages[] = {
     {T(L"Profili"), L"", T(L"Un profilo per gioco; \"default\" vale per tutti gli altri.")},
     {T(L"Aspetto overlay"), L"", nullptr},
     {T(L"Elementi e sensori"), L"", nullptr},
-    {L"Hotkey", L"", T(L"Scorciatoie da tastiera, attive anche durante il gioco.")},
+    {T(L"Hotkey"), L"", T(L"Scorciatoie da tastiera, attive anche durante il gioco.")},
     {T(L"Generali"), L"", T(L"Comportamento dell'overlay, lingua, avvio e aggiornamenti.")},
     {T(L"Tema"), L"", T(L"Colore d'accento di questa finestra.")}};
 constexpr int kPageCount = int(std::size(kPages));
@@ -177,6 +184,7 @@ struct State {
   std::vector<int> layoutPage;                // pagina di ogni controllo di layout (-1 = sempre visibile)
   int page = 0;                               // pagina mostrata
   bool syncingAccent = false;                 // aggiornamento di ruota/codice in corso (niente rimbalzi)
+  bool previewQueued = false;                 // kMsgRefreshPreview già in coda
   GlobalConfig cfg;
   GameList games;
   std::vector<Profile> profiles;
@@ -196,6 +204,7 @@ constexpr int kRowH = 28;
 constexpr UINT_PTR kTimerMonitor = 1;
 constexpr UINT kMsgUpdateFound = WM_APP + 20;     // lParam = UpdateInfo* (dal thread di controllo)
 constexpr UINT kMsgUpdateDownloaded = WM_APP + 21;  // wParam = riuscito, lParam = std::wstring* errore
+constexpr UINT kMsgRefreshPreview = WM_APP + 22;    // ridisegna l'anteprima dell'overlay (una volta per raffica)
 
 // Elementi disegnati direttamente sulla finestra (coordinate a 96 DPI).
 struct PanelItem {
@@ -336,7 +345,17 @@ std::string UniqueName(const std::string& base) {
   }
 }
 
-void UpdateSwatch(int i) { InvalidateRect(Item(IDC_COLOR_BTN + i), nullptr, FALSE); }
+// L'anteprima dell'overlay si aggiorna dopo che i controlli hanno finito di cambiare (una volta sola
+// anche se cambiano in tanti, come quando si seleziona un altro profilo).
+void QueuePreview() {
+  if (g.previewQueued || !g.wnd) return;
+  g.previewQueued = PostMessageW(g.wnd, kMsgRefreshPreview, 0, 0) != 0;
+}
+
+void UpdateSwatch(int i) {
+  InvalidateRect(Item(IDC_COLOR_BTN + i), nullptr, FALSE);
+  QueuePreview();
+}
 
 void ProfileToUi() {
   if (g.cur < 0) return;
@@ -364,6 +383,37 @@ void ProfileToUi() {
   const bool custom = p.position == "custom";
   EnableField(IDC_X, custom);
   EnableField(IDC_Y, custom);
+  QueuePreview();
+}
+
+// Aspetto ed elementi dai controlli al profilo (senza controlli di validità: li fa Sanitize).
+void UiToLook(Profile& p) {
+  p.layout = kLayouts[GetSel(IDC_LAYOUT)];
+  p.position = kPositions[GetSel(IDC_POSITION)];
+  p.x = GetInt(IDC_X, p.x);
+  p.y = GetInt(IDC_Y, p.y);
+  p.fontFamily = GetUtf8(IDC_FONT);
+  try {
+    p.fontSize = std::stof(GetUtf8(IDC_FONTSIZE));
+  } catch (...) {
+  }
+  p.bold = GetCheck(IDC_BOLD);
+  p.autoScale = GetCheck(IDC_AUTOSCALE);
+  p.bgOpacity = GetInt(IDC_OPACITY, p.bgOpacity);
+  p.margin = GetInt(IDC_MARGIN, p.margin);
+  p.fpsRedBelow = GetInt(IDC_FPSRED, p.fpsRedBelow);
+  p.fpsYellowBelow = GetInt(IDC_FPSYELLOW, p.fpsYellowBelow);
+  for (int i = 0; i < kShowCount; ++i) ShowRef(p, i) = GetCheck(IDC_SHOW + i);
+}
+
+// Anteprima con quello che c'è nei controlli in questo momento, anche se non è ancora salvato.
+void UpdatePreview() {
+  HWND pv = Item(IDC_PREVIEW);
+  if (!pv || g.cur < 0 || size_t(g.cur) >= g.profiles.size()) return;
+  Profile p = g.profiles[size_t(g.cur)];
+  UiToLook(p);
+  Sanitize(p);
+  ui::SetOverlayPreview(pv, p);
 }
 
 // Legge i controlli nel profilo corrente. false se il nome non è valido.
@@ -386,22 +436,7 @@ bool UiToProfile() {
     }
     p.match = TextToMatch(GetUtf8(IDC_MATCH));
   }
-  p.layout = kLayouts[GetSel(IDC_LAYOUT)];
-  p.position = kPositions[GetSel(IDC_POSITION)];
-  p.x = GetInt(IDC_X, p.x);
-  p.y = GetInt(IDC_Y, p.y);
-  p.fontFamily = GetUtf8(IDC_FONT);
-  try {
-    p.fontSize = std::stof(GetUtf8(IDC_FONTSIZE));
-  } catch (...) {
-  }
-  p.bold = GetCheck(IDC_BOLD);
-  p.autoScale = GetCheck(IDC_AUTOSCALE);
-  p.bgOpacity = GetInt(IDC_OPACITY, p.bgOpacity);
-  p.margin = GetInt(IDC_MARGIN, p.margin);
-  p.fpsRedBelow = GetInt(IDC_FPSRED, p.fpsRedBelow);
-  p.fpsYellowBelow = GetInt(IDC_FPSYELLOW, p.fpsYellowBelow);
-  for (int i = 0; i < kShowCount; ++i) ShowRef(p, i) = GetCheck(IDC_SHOW + i);
+  UiToLook(p);
   Sanitize(p);
   return true;
 }
@@ -761,6 +796,32 @@ void DrawAccentChip(const DRAWITEMSTRUCT* d, COLORREF color) {
   ui::FillCircle(dc, cx, cy, rad, color, color);
 }
 
+// "Usa nell'overlay...": un menu chiede a quale elemento dare il colore dell'interfaccia (quello che si
+// vede, cioè già schiarito se era troppo scuro). Vale per il profilo selezionato, come gli altri colori.
+void OnAccentToOverlay() {
+  if (g.cur < 0) return;
+  HMENU menu = CreatePopupMenu();
+  AppendMenuW(menu, MF_STRING | MF_DISABLED, 0, T(L"Dai questo colore a:"));
+  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+  constexpr int kTargets = kColorCount - 1;  // tutti tranne lo sfondo
+  for (int i = 0; i < kTargets; ++i) AppendMenuW(menu, MF_STRING, UINT_PTR(i + 1), kColorNames[i]);
+  RECT r;
+  GetWindowRect(Item(IDC_ACCENT_TO_OVERLAY), &r);
+  const int pick = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_TOPALIGN, r.left,
+                                  r.bottom + 2, 0, g.wnd, nullptr);
+  DestroyMenu(menu);
+  if (pick < 1 || pick > kTargets) return;
+  Profile& p = g.profiles[size_t(g.cur)];
+  Color& c = ColorRef(p, pick - 1);
+  c.r = GetRValue(ui::col::Accent);
+  c.g = GetGValue(ui::col::Accent);
+  c.b = GetBValue(ui::col::Accent);
+  UpdateSwatch(pick - 1);
+  Status(TF(L"Colore di \"{}\" nell'overlay cambiato per il profilo \"{}\". Premi \"Salva e applica\" per tenerlo.",
+            kColorNames[pick - 1], ToWide(p.name)),
+         ui::col::Accent);
+}
+
 void OnSave() {
   if (!UiToProfile() || !UiToGlobal()) return;
   RefreshList();
@@ -996,7 +1057,7 @@ void BuildUi() {
 
   // 1 · Aspetto overlay (profilo selezionato)
   g_buildPage = 1;
-  constexpr int lx = 264, lw = 130, cx = 398;
+  constexpr int lx = 264, lw = 146, cx = 414;
   auto row = [](int i) { return 128 + i * 34; };
   Panel(T(L"Layout e posizione"), 248, 116, 728, 148);
   Label(L"Layout", lx, row(0), lw);
@@ -1019,11 +1080,13 @@ void BuildUi() {
   Check(IDC_BOLD, T(L"Grassetto"), cx + 96, row2(1) + 2, 170);
   Label(T(L"Opacità sfondo %"), lx, row2(2), lw);
   Edit(IDC_OPACITY, cx, row2(2), 80);
-  Check(IDC_AUTOSCALE, T(L"Scala con risoluzione"), cx + 96, row2(2) + 2, 180);
+  Check(IDC_AUTOSCALE, T(L"Scala con risoluzione"), cx + 96, row2(2) + 2, 176);
   Label(T(L"FPS rosso sotto"), 690, row2(0), 140);
   Edit(IDC_FPSRED, 836, row2(0), 80);
   Label(T(L"FPS giallo sotto"), 690, row2(1), 140);
   Edit(IDC_FPSYELLOW, 836, row2(1), 80);
+  Panel(T(L"Anteprima"), 248, 474, 728, 104);
+  Make(ui::kOverlayPreviewClass, L"", 0, 256, 482, 712, 88, IDC_PREVIEW);
 
   // 2 · Elementi e sensori (profilo selezionato)
   g_buildPage = 2;
@@ -1084,9 +1147,21 @@ void BuildUi() {
   Edit(IDC_ACCENT_HEX, 652, 222, 120, L"#RRGGBB");
   SendMessageW(Item(IDC_ACCENT_HEX), EM_LIMITTEXT, 7, 0);
   Button(IDC_ACCENT_RESET, T(L"Predefinito"), 572, 266, 140, 32, ui::col::Panel);
+  Button(IDC_ACCENT_TO_OVERLAY, T(L"Usa nell'overlay..."), 722, 266, 190, 32, ui::col::Panel);
   Label(T(L"Gira l'anello per la tonalità, trascina nel quadrato"), 572, 318, 390);
   Label(T(L"per chiarezza e intensità. Da tastiera: frecce,"), 572, 340, 390);
   Label(T(L"PagSu e PagGiù. Il colore si applica subito."), 572, 362, 390);
+  // Controlli d'esempio: mostrano il colore scelto su pulsanti, caselle e campi. Si possono provare
+  // col mouse ma non fanno niente e restano fuori dal giro del Tab.
+  Panel(T(L"Anteprima"), 248, 464, 728, 64);
+  Button(IDC_DEMO_PRIMARY, T(L"Pulsante principale"), 264, 480, 180, 32, ui::col::Panel, true);
+  Button(IDC_DEMO_BUTTON, T(L"Pulsante"), 456, 480, 130, 32, ui::col::Panel);
+  Check(IDC_DEMO_CHECK, T(L"Casella"), 606, 484, 110);
+  SetCheck(IDC_DEMO_CHECK, true);
+  Edit(IDC_DEMO_EDIT, 728, 482, 150);
+  SetText(IDC_DEMO_EDIT, T(L"Campo di testo"));
+  for (int id : {IDC_DEMO_PRIMARY, IDC_DEMO_BUTTON, IDC_DEMO_CHECK, IDC_DEMO_EDIT})
+    SetWindowLongW(Item(id), GWL_STYLE, GetWindowLongW(Item(id), GWL_STYLE) & ~WS_TABSTOP);
   g_buildPage = -1;
 }
 
@@ -1104,6 +1179,7 @@ void ShowPage(int p) {
   }
   for (int i = 0; i < kPageCount; ++i) InvalidateRect(Item(IDC_NAV_BASE + i), nullptr, FALSE);
   InvalidateRect(g.wnd, nullptr, FALSE);
+  if (p == 1) QueuePreview();
 }
 
 // ------------------------------------------------------------------ disegno
@@ -1404,6 +1480,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_COMMAND: {
       const int id = LOWORD(wp), code = HIWORD(wp);
+      // Qualsiasi controllo dell'aspetto o degli elementi visibili cambia l'anteprima dell'overlay.
+      if (((id >= IDC_LAYOUT && id <= IDC_MARGIN) || (id >= IDC_SHOW && id < IDC_SHOW + kShowCount)) &&
+          (code == EN_CHANGE || code == CBN_SELCHANGE || code == CBN_EDITCHANGE || code == BN_CLICKED))
+        QueuePreview();
       const bool isEdit = std::any_of(g_frames.begin(), g_frames.end(), [id](const FrameItem& f) { return f.id == id; });
       if (isEdit && (code == EN_SETFOCUS || code == EN_KILLFOCUS)) {
         g.focusedEdit = code == EN_SETFOCUS ? id : 0;
@@ -1443,6 +1523,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (id >= IDC_COLOR_BTN && id < IDC_COLOR_BTN + kColorCount) OnPickColor(id - IDC_COLOR_BTN);
         if (id >= IDC_ACCENT_BASE && id < IDC_ACCENT_BASE + kAccentCount) ApplyAccent(kAccentPresets[id - IDC_ACCENT_BASE].color);
         if (id == IDC_ACCENT_RESET) ApplyAccent(ui::col::DefaultAccent);
+        if (id == IDC_ACCENT_TO_OVERLAY) OnAccentToOverlay();
         if (id >= IDC_NAV_BASE && id < IDC_NAV_BASE + kPageCount) {
           EndCapture(false);
           ShowPage(id - IDC_NAV_BASE);
@@ -1536,6 +1617,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       }
       return 0;
     }
+    case kMsgRefreshPreview:
+      g.previewQueued = false;
+      UpdatePreview();
+      return 0;
     case kMsgUpdateFound: {
       std::unique_ptr<UpdateInfo> u(reinterpret_cast<UpdateInfo*>(lp));
       g.update = std::move(*u);
@@ -1581,6 +1666,17 @@ HFONT MakeIconFont() {
                      CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, face);
 }
 
+// Altezza del campo e delle voci di tutte le combobox, alla scala attuale. Va riapplicata dopo ogni
+// cambio di font o di tema del controllo, che riportano il campo all'altezza scelta da Windows.
+void ApplyComboHeights() {
+  for (const auto& [c, r] : g.layout) {
+    wchar_t cls[32];
+    if (!GetClassNameW(c, cls, 32) || _wcsicmp(cls, L"ComboBox") != 0) continue;
+    SendMessageW(c, CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
+    SendMessageW(c, CB_SETITEMHEIGHT, 0, S(22));
+  }
+}
+
 // La finestra si può ridimensionare e ingrandire: tutto (controlli, testo, pannelli) scala con lei
 // in proporzione al disegno originale da 1000x806 a 96 DPI, centrato se le proporzioni sono diverse.
 void Relayout(int clientW, int clientH) {
@@ -1616,12 +1712,7 @@ void Relayout(int clientW, int clientH) {
   if (dwp) EndDeferWindowPos(dwp);
 
   if (rescale) {
-    for (const auto& [c, r] : g.layout) {
-      wchar_t cls[32];
-      if (!GetClassNameW(c, cls, 32) || _wcsicmp(cls, L"ComboBox") != 0) continue;
-      SendMessageW(c, CB_SETITEMHEIGHT, WPARAM(-1), S(kRowH - 8));
-      SendMessageW(c, CB_SETITEMHEIGHT, 0, S(22));
-    }
+    ApplyComboHeights();
     if (HWND list = Item(IDC_LIST)) SendMessageW(list, LB_SETITEMHEIGHT, 0, S(32));
   }
   // Le combobox modificabili (font) selezionano il testo quando cambiano dimensione: lo deselezioniamo.
@@ -1650,6 +1741,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   EnableDarkModeForApp();
   ui::Init(inst);
   ui::RegisterColorWheel(inst);
+  ui::RegisterOverlayPreview(inst);
   g.fontIcon = MakeIconFont();
   g.font = MakeFont(95, FW_NORMAL);
   g.fontBold = MakeFont(95, FW_SEMIBOLD);

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.5.0 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.6.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -65,6 +65,7 @@ add_executable(PerfOverlay WIN32
   src/settings/settings_window.cpp
   src/settings/theme.cpp
   src/settings/color_wheel.cpp
+  src/settings/overlay_preview.cpp
   src/settings/layout_editor.cpp
   src/settings/sensor_browser.cpp
   src/settings/games_editor.cpp

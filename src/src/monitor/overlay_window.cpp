@@ -197,7 +197,7 @@ LaidRow LayoutRow(IDWriteFactory* dw, FormatFn&& format, const Row& row, float b
 }
 
 // Sfondo arrotondato (e bordo neon) di un blocco.
-void DrawBox(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* br, const D2D1_RECT_F& r, float base, float uiScale,
+void DrawBox(ID2D1RenderTarget* dc, ID2D1SolidColorBrush* br, const D2D1_RECT_F& r, float base, float uiScale,
              const Profile& p) {
   const auto box = D2D1::RoundedRect(r, base * 0.3f, base * 0.3f);
   const float bgAlpha = p.bgOpacity / 100.0f;
@@ -212,7 +212,7 @@ void DrawBox(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* br, const D2D1_RECT_F
 }
 
 // Disegna una riga già impaginata con l'angolo superiore sinistro in (x, rowTop).
-void DrawRow(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* br, const LaidRow& r, float x, float rowTop, float base,
+void DrawRow(ID2D1RenderTarget* dc, ID2D1SolidColorBrush* br, const LaidRow& r, float x, float rowTop, float base,
              float uiScale, const Profile& p) {
   const bool minimal = p.style == "minimal";
   const bool neon = p.style == "neon";
@@ -252,6 +252,52 @@ void DrawRow(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* br, const LaidRow& r,
 }
 
 }  // namespace
+
+D2D1_SIZE_F DrawRowsPreview(ID2D1RenderTarget* rt, IDWriteFactory* dw, const std::vector<Row>& rows, const Profile& p,
+                            float uiScale, float x, float y) {
+  const std::wstring family = ResolveFamily(p.fontFamily);
+  std::unordered_map<int, ComPtr<IDWriteTextFormat>> formats;
+  auto format = [&](float px, bool bold) -> IDWriteTextFormat* {
+    auto& f = formats[int(std::lround(px * 4.0f)) * 2 + (bold ? 1 : 0)];
+    if (!f) {
+      if (FAILED(dw->CreateTextFormat(family.c_str(), nullptr,
+                                      bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                      DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, px, L"", &f)))
+        return nullptr;
+      f->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    }
+    return f.Get();
+  };
+
+  // Stesse misure di OverlayWindow::Render.
+  const float base = p.fontSize * uiScale;
+  std::vector<LaidRow> laid;
+  for (const auto& row : rows) {
+    LaidRow lr = LayoutRow(dw, format, row, base, p.bold);
+    if (!lr.items.empty()) laid.push_back(std::move(lr));
+  }
+  if (laid.empty()) return D2D1::SizeF(0, 0);
+  const float pad = base * 0.45f;
+  const float rowGap = base * 0.15f;
+  float contentW = 0, contentH = 0;
+  for (const auto& r : laid) {
+    contentW = std::max(contentW, r.w);
+    contentH += r.ascent + r.descent;
+  }
+  contentH += rowGap * float(laid.size() - 1);
+  const float w = std::ceil(contentW + 2 * pad), h = std::ceil(contentH + 2 * pad);
+
+  ComPtr<ID2D1SolidColorBrush> br;
+  if (rt && SUCCEEDED(rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &br))) {
+    DrawBox(rt, br.Get(), D2D1::RectF(x + 0.5f, y + 0.5f, x + w - 0.5f, y + h - 0.5f), base, uiScale, p);
+    float rowTop = y + pad;
+    for (const auto& r : laid) {
+      DrawRow(rt, br.Get(), r, x + pad, rowTop, base, uiScale, p);
+      rowTop += r.ascent + r.descent + rowGap;
+    }
+  }
+  return D2D1::SizeF(w, h);
+}
 
 float OverlayWindow::UiScale(const Profile& p, const RECT& anchor) const {
   // Con autoScale le dimensioni del profilo sono riferite a 1080p e seguono l'altezza

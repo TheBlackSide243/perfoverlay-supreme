@@ -14,10 +14,10 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 
 **[⬇ Download the latest version](https://github.com/TheBlackSide243/perfoverlay-supreme/releases/latest)**
 
-**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with an interface color of your choice, picked from the color wheel in the Theme section.
+**Settings**: one section at a time from the sidebar (profiles, look, items and sensors, hotkeys, general, theme), with a preview of the overlay while you change it and an interface color of your choice from the color wheel.
 
 <p>
-  <img src="docs/images/settings.en.png" alt="Settings window, Profiles section" width="49%">
+  <img src="docs/images/settings-aspetto.en.png" alt="Settings window, Overlay look section with the preview" width="49%">
   <img src="docs/images/settings-tema.en.png" alt="Settings window, Theme section with the color wheel" width="49%">
 </p>
 
@@ -54,7 +54,8 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
 - **English or Italian UI**: pick it in Settings › General › "Lingua / Language". The first time it follows the Windows language.
-- **Interface color of your choice**: in Settings › Theme, with a color wheel, six ready-made colors or a hex code.
+- **Overlay preview in the settings**: in Overlay look you see the effect of font, size, opacity, colors, items and position right away, before saving.
+- **Interface color of your choice**: in Settings › Theme, with a color wheel, six ready-made colors or a hex code; the same color can be given to an overlay item.
 - **Automatic updates**: the overlay checks GitHub every 6 hours and installs new versions by itself (never during a game), then restarts and tells you with a notification. The exe is verified (SHA-256) before it replaces the one in use. In Settings › "Updates" you can also pick "Notify only" (an "Update to vX.Y.Z" button in the settings) or "Off".
 
 ## Download and usage

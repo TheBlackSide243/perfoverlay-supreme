@@ -58,6 +58,8 @@ src/
     settings_window.*     finestra principale delle impostazioni: barra laterale e una pagina alla volta (g.layoutPage, ShowPage);
                           ridimensionabile, Relayout() riscala i controlli dal disegno a 96 DPI
     color_wheel.*         ruota colori (anello tonalità + quadrato saturazione/luminosità) della sezione Tema
+    overlay_preview.*     anteprima dell'overlay nella sezione Aspetto overlay: BuildRows con valori d'esempio e
+                          DrawRowsPreview (monitor/overlay_window.cpp), cioè lo stesso disegno dell'overlay vero
     layout_editor.*       editor del layout libero e dei preset RTSS semplici
     sensor_browser.*      browser dei sensori
     games_editor.*        lista giochi (Steam / Epic / GOG / programmi aperti)

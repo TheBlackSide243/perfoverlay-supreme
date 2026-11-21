@@ -105,4 +105,10 @@ class OverlayWindow {
   Microsoft::WRL::ComPtr<IWICImagingFactory> wic_;
 };
 
+// Le stesse righe dell'overlay (barra o verticale) disegnate su un render target Direct2D qualsiasi, con
+// l'angolo in alto a sinistra in (x, y): è l'anteprima nelle impostazioni. Con rt = nullptr misura soltanto.
+// Restituisce la dimensione del riquadro (0x0 se non c'è niente da mostrare).
+D2D1_SIZE_F DrawRowsPreview(ID2D1RenderTarget* rt, IDWriteFactory* dw, const std::vector<Row>& rows, const Profile& p,
+                            float uiScale, float x, float y);
+
 }  // namespace po

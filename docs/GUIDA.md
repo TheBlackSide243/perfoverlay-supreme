@@ -25,9 +25,12 @@ Tutto è in un solo file, `PerfOverlaySupreme.exe`: overlay, impostazioni, edito
 
 - **Doppio clic**: avvia l'overlay. Chiede l'amministratore, che serve per gli FPS. Se l'overlay è già attivo, apre le **impostazioni**.
 - **Finestra delle impostazioni**: a sinistra la barra delle sezioni (Profili, Aspetto overlay, Elementi e sensori, Hotkey, Generali, Tema), a destra la sezione scelta. In fondo alla barra ci sono lo stato dell'overlay e, quando serve, "Avvia overlay" e "Aggiorna a vX.Y.Z"; "Salva e applica" è sempre in basso a destra. La finestra si può ridimensionare e massimizzare e tutto il contenuto scala con lei; all'apertura si adatta allo schermo e resta nitida anche su un monitor con scala diversa.
-- **Tema**: la sezione Tema cambia il colore d'accento della finestra. Si sceglie con la ruota colori (anello per la tonalità, quadrato per chiarezza e intensità; da tastiera frecce e PagSu/PagGiù), con uno dei sei colori pronti o scrivendo il codice (es. `#22D3EE`). Il colore si applica subito e resta con "Salva e applica"; "Predefinito" torna al blu. Un colore troppo scuro viene schiarito quanto basta per restare leggibile.
+- **Tema**: la sezione Tema cambia il colore d'accento della finestra. Si sceglie con la ruota colori (anello per la tonalità, quadrato per chiarezza e intensità; da tastiera frecce e PagSu/PagGiù), con uno dei sei colori pronti o scrivendo il codice (es. `#22D3EE`). Il colore si applica subito e resta con "Salva e applica"; "Predefinito" torna al blu. Un colore troppo scuro viene schiarito quanto basta per restare leggibile. Sotto la ruota, il riquadro "Anteprima" mostra un pulsante principale, un pulsante normale, una casella e un campo di testo con il colore scelto: si possono provare col mouse e non cambiano niente. "Usa nell'overlay..." dà lo stesso colore a un elemento dell'overlay (FPS, CPU, GPU, RAM, Batteria o Testo) nel profilo selezionato.
 
   ![Sezione Tema con la ruota colori](images/settings-tema.png)
+- **Anteprima dell'overlay**: in fondo alla sezione Aspetto overlay c'è una finta scena di gioco con sopra l'overlay, disegnato come quello vero ma con valori d'esempio. Cambia subito quando modifichi layout, posizione, font, dimensione, opacità, soglie FPS, colori ed elementi visibili, anche prima di salvare. Mostra la barra e il layout verticale a grandezza reale (riferita a 1080p); se non ci stanno li rimpicciolisce e lo scrive nell'angolo. Il layout libero e i preset RTSS occupano tutto lo schermo: per quelli l'anteprima rimanda all'Editor.
+
+  ![Sezione Aspetto overlay con l'anteprima](images/settings-aspetto.png)
 - **Icona vicino all'orologio, tasto destro**: mostra/nascondi, solo FPS, profilo, Impostazioni, Test overlay (DirectX 11/12), log, esci.
 - **Riga di comando**:
 

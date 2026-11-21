@@ -132,8 +132,37 @@ void PaintCombo(HWND h, HDC target) {
   DeleteDC(dc);
 }
 
+// Combobox modificabile: il campo di testo interno lo sistemiamo noi, allineato al testo delle altre
+// combobox e fuori dalla freccia. Da sola la combobox lo dimensiona con le misure di Windows, che non
+// seguono l'ingrandimento della finestra: a finestra grande il campo finiva sopra la freccia.
+void PlaceComboEdit(HWND h) {
+  COMBOBOXINFO ci{sizeof(ci)};
+  if (!GetComboBoxInfo(h, &ci) || !ci.hwndItem || ci.hwndItem == h) return;
+  RECT rc;
+  GetClientRect(h, &rc);
+  const float s = Scale(h);
+  HDC dc = GetDC(h);
+  HGDIOBJ old = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(h, WM_GETFONT, 0, 0)));
+  TEXTMETRICW tm{};
+  GetTextMetricsW(dc, &tm);
+  SelectObject(dc, old);
+  ReleaseDC(h, dc);
+  const int height = std::max(1, std::min(int(tm.tmHeight), int(rc.bottom - int(4 * s))));
+  const int left = int(6 * s);
+  SetWindowPos(ci.hwndItem, nullptr, left, (rc.bottom - height) / 2, std::max(1, int(rc.right - int(26 * s) - left)),
+               height, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 LRESULT CALLBACK ComboSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR) {
   switch (msg) {
+    case WM_SIZE:
+    case WM_SETFONT:
+    case CB_SETITEMHEIGHT: {  // la combobox ha appena rimesso il campo dove vuole lei
+      const LRESULT r = DefSubclassProc(h, msg, wp, lp);
+      PlaceComboEdit(h);
+      InvalidateRect(h, nullptr, FALSE);
+      return r;
+    }
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC dc = BeginPaint(h, &ps);
@@ -437,6 +466,7 @@ void MakeButton(HWND btn, COLORREF background, bool primary) {
 void MakeCombo(HWND combo, COLORREF background) {
   SetPropW(combo, kPropBg, reinterpret_cast<HANDLE>(static_cast<UINT_PTR>(background)));
   SetWindowSubclass(combo, ComboSubclass, 0, 0);
+  PlaceComboEdit(combo);
   InvalidateRect(combo, nullptr, FALSE);
 }
 
