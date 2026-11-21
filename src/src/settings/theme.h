@@ -49,6 +49,13 @@ bool ParseHexColor(const std::string& s, COLORREF& out);
 std::string HexColor(COLORREF c);
 void FillRound(HDC dc, const RECT& r, int radius, COLORREF fill, COLORREF border, float borderWidth = 1.0f);
 void StrokeRound(HDC dc, const RECT& r, int radius, COLORREF color, float width);
+// Riquadro con il bordo più chiaro in alto che si spegne scendendo, come il bordo di un vetro illuminato.
+void FillRoundLit(HDC dc, const RECT& r, int radius, COLORREF fill, COLORREF borderTop, COLORREF borderBottom);
+// Riempimento sfumato dall'alto al basso (pulsante principale): dà un po' di spessore senza effetti lucidi.
+void FillRoundV(HDC dc, const RECT& r, int radius, COLORREF top, COLORREF bottom, COLORREF border, float borderWidth);
+// Traccia degli FPS, il segno dell'app (è anche nell'icona): linea che nasce dal nulla a sinistra e finisce
+// con un punto pieno a destra, come un grafico che sta scorrendo.
+void DrawTrace(HDC dc, const RECT& r, COLORREF color, float scale);
 void FillCircle(HDC dc, int cx, int cy, int radius, COLORREF fill, COLORREF border);
 
 // Pulsante owner-draw (BS_OWNERDRAW): stato hover gestito qui, disegno con DrawButton da WM_DRAWITEM.

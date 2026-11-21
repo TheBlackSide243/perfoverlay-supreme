@@ -448,6 +448,68 @@ void StrokeRound(HDC dc, const RECT& r, int radius, COLORREF color, float width)
   g.DrawPath(&pen, &p);
 }
 
+void FillRoundLit(HDC dc, const RECT& r, int radius, COLORREF fill, COLORREF borderTop, COLORREF borderBottom) {
+  Gdiplus::Graphics g(dc);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+  g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
+  Gdiplus::GraphicsPath p;
+  RoundPath(p, r.left + 0.5f, r.top + 0.5f, float(r.right - r.left) - 1, float(r.bottom - r.top) - 1, float(radius));
+  Gdiplus::SolidBrush b(Gp(fill));
+  g.FillPath(&b, &p);
+  // La sfumatura parte e finisce un pixel fuori dal riquadro, così i bordi non prendono il colore opposto.
+  Gdiplus::LinearGradientBrush lb(Gdiplus::PointF(0, float(r.top) - 1), Gdiplus::PointF(0, float(r.bottom) + 1),
+                                  Gp(borderTop), Gp(borderBottom));
+  const Gdiplus::REAL factors[] = {0.0f, 1.0f, 1.0f}, positions[] = {0.0f, 0.4f, 1.0f};
+  lb.SetBlend(factors, positions, 3);
+  Gdiplus::Pen pen(&lb, 1.0f);
+  g.DrawPath(&pen, &p);
+}
+
+void FillRoundV(HDC dc, const RECT& r, int radius, COLORREF top, COLORREF bottom, COLORREF border,
+                float borderWidth) {
+  Gdiplus::Graphics g(dc);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+  g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
+  Gdiplus::GraphicsPath p;
+  const float inset = borderWidth > 0 ? borderWidth / 2 : 0;
+  RoundPath(p, r.left + inset, r.top + inset, float(r.right - r.left) - 2 * inset,
+            float(r.bottom - r.top) - 2 * inset, float(radius));
+  Gdiplus::LinearGradientBrush lb(Gdiplus::PointF(0, float(r.top) - 1), Gdiplus::PointF(0, float(r.bottom) + 1),
+                                  Gp(top), Gp(bottom));
+  g.FillPath(&lb, &p);
+  if (borderWidth > 0) {
+    Gdiplus::Pen pen(Gp(border), borderWidth);
+    g.DrawPath(&pen, &p);
+  }
+}
+
+void DrawTrace(HDC dc, const RECT& r, COLORREF color, float scale) {
+  // Andamento d'esempio (0 = fondo, 1 = cima): una partita stabile con un calo e la ripresa.
+  static const float kValues[] = {0.52f, 0.58f, 0.55f, 0.63f, 0.60f, 0.66f, 0.62f, 0.70f, 0.66f, 0.72f,
+                                  0.68f, 0.64f, 0.44f, 0.30f, 0.36f, 0.52f, 0.62f, 0.70f, 0.67f, 0.74f,
+                                  0.71f, 0.78f, 0.74f, 0.80f, 0.77f, 0.84f};
+  constexpr int n = int(std::size(kValues));
+  const float w = float(r.right - r.left), h = float(r.bottom - r.top);
+  if (w <= 0 || h <= 0) return;
+  Gdiplus::PointF pts[n];
+  for (int i = 0; i < n; ++i)
+    pts[i] = Gdiplus::PointF(r.left + w * float(i) / float(n - 1), r.bottom - h * kValues[i]);
+  Gdiplus::Graphics g(dc);
+  g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+  const Gdiplus::PointF from(float(r.left) - 1, 0), to(float(r.right) + 1, 0);
+
+  Gdiplus::LinearGradientBrush stroke(from, to, Gp(color, 0), Gp(color, 215));
+  Gdiplus::Pen pen(&stroke, 2.0f * scale);
+  pen.SetLineJoin(Gdiplus::LineJoinRound);
+  g.DrawCurve(&pen, pts, n, 0.35f);
+
+  const Gdiplus::PointF end = pts[n - 1];
+  const float halo = 7.0f * scale, dot = 3.5f * scale;
+  Gdiplus::SolidBrush haloBrush(Gp(color, 60)), dotBrush(Gp(color));
+  g.FillEllipse(&haloBrush, end.X - halo, end.Y - halo, halo * 2, halo * 2);
+  g.FillEllipse(&dotBrush, end.X - dot, end.Y - dot, dot * 2, dot * 2);
+}
+
 void FillCircle(HDC dc, int cx, int cy, int radius, COLORREF fill, COLORREF border) {
   Gdiplus::Graphics g(dc);
   g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
@@ -504,7 +566,12 @@ void DrawButton(const DRAWITEMSTRUCT* dis, const COLORREF* swatch) {
     border = focus ? col::Accent : hover ? col::FieldHover : col::BtnBorder;  // hover e focus distinti
     text = col::Text;
   }
-  FillRound(dc, r, int(8 * s), fill, border, focus && !disabled ? 2.0f * s : 1.0f);
+  const float borderWidth = focus && !disabled ? 2.0f * s : 1.0f;
+  if (primary && !disabled)  // un filo più chiaro in alto e più scuro in basso
+    FillRoundV(dc, r, int(8 * s), Blend(fill, RGB(255, 255, 255), 0.10f), Blend(fill, RGB(0, 0, 0), 0.10f),
+               focus ? col::Text : Blend(fill, RGB(255, 255, 255), 0.18f), borderWidth);
+  else
+    FillRound(dc, r, int(8 * s), fill, border, borderWidth);
 
   wchar_t label[128];
   GetWindowTextW(h, label, 128);

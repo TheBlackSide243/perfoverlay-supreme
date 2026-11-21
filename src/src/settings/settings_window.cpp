@@ -175,6 +175,7 @@ struct State {
   HFONT font = nullptr, fontBold = nullptr, fontTitle = nullptr, fontSection = nullptr;
   HFONT fontDlg = nullptr;  // per le finestre secondarie, che hanno dimensioni fisse ai DPI di sistema
   HFONT fontIcon = nullptr;  // glifi delle icone della barra laterale
+  HFONT fontIconBig = nullptr;  // icona della sezione nell'intestazione
   HBRUSH brBg = nullptr, brPanel = nullptr, brInput = nullptr, brInputOff = nullptr, brSide = nullptr;
   HICON icon = nullptr;
   int dpi = 96;      // scala effettiva dell'interfaccia (DPI del monitor × ingrandimento della finestra)
@@ -1296,19 +1297,24 @@ void Paint(HDC dc, const RECT& client) {
              DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
 
   // Intestazione della sezione.
+  // Icona nel suo quadrato tinto del colore d'accento, titolo, descrizione; a destra la traccia degli FPS.
   const PageInfo& pg = kPages[g.page];
-  DrawTextAt(dc, pg.name, SR({248, 18, 976, 52}), g.fontTitle, ui::col::Text, DT_LEFT | DT_VCENTER);
+  ui::FillRound(dc, SR({248, 20, 290, 62}), S(11), ui::Blend(ui::col::Bg, ui::col::Accent, 0.15f),
+                ui::Blend(ui::col::Bg, ui::col::Accent, 0.42f));
+  DrawTextAt(dc, pg.glyph, SR({248, 20, 290, 62}), g.fontIconBig, ui::col::Accent, DT_CENTER | DT_VCENTER);
+  ui::DrawTrace(dc, SR({770, 18, 966, 62}), ui::col::Accent, g.dpi / 96.0f);
+  DrawTextAt(dc, pg.name, SR({304, 14, 760, 44}), g.fontTitle, ui::col::Text, DT_LEFT | DT_VCENTER);
   std::wstring sub = pg.subtitle ? pg.subtitle : L"";
   if (!pg.subtitle && g.cur >= 0 && size_t(g.cur) < g.profiles.size())
     sub = TF(L"Valgono per il profilo \"{}\": lo scegli nella sezione Profili.", ToWide(g.profiles[size_t(g.cur)].name));
-  DrawTextAt(dc, sub, SR({249, 54, 976, 76}), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
+  DrawTextAt(dc, sub, SR({305, 44, 760, 66}), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
 
   for (const auto& p : g_panels) {
     if (p.page != g.page) continue;
     const RECT r = SR(p.r);
     DrawTextAt(dc, p.title, {r.left + S(4), r.top - S(24), r.right, r.top - S(4)}, g.fontSection, ui::col::Text,
                DT_LEFT | DT_BOTTOM);
-    ui::FillRound(dc, r, S(12), ui::col::Panel, ui::col::Line);
+    ui::FillRoundLit(dc, r, S(12), ui::col::Panel, RGB(78, 78, 90), ui::col::Line);
   }
   for (const auto& l : g_labels)
     if (l.page == g.page) DrawTextAt(dc, l.text, SR(l.r), g.font, ui::col::Sub, DT_LEFT | DT_VCENTER);
@@ -1331,12 +1337,11 @@ void DrawNavItem(const DRAWITEMSTRUCT* d, int i) {
   const bool sel = i == g.page;
   const bool hover = ui::IsHovered(d->hwndItem);
   const bool focus = (d->itemState & ODS_FOCUS) && !(d->itemState & ODS_NOFOCUSRECT);
-  if (sel || hover) {
-    const COLORREF fill = sel ? RGB(38, 38, 46) : RGB(30, 30, 36);
-    ui::FillRound(dc, r, S(8), fill, fill, 0);
-  }
-  if (sel) ui::FillRound(dc, {r.left, r.top + S(9), r.left + S(3), r.bottom - S(9)}, S(2), ui::col::Accent, ui::col::Accent, 0);
-  if (focus) ui::StrokeRound(dc, r, S(8), ui::col::Accent, float(S(2)));
+  if (sel)  // sezione aperta: fondo e bordo tinti del colore d'accento
+    ui::FillRound(dc, r, S(10), ui::Blend(kSidebar, ui::col::Accent, 0.16f), ui::Blend(kSidebar, ui::col::Accent, 0.36f));
+  else if (hover)
+    ui::FillRound(dc, r, S(10), RGB(30, 30, 36), RGB(30, 30, 36), 0);
+  if (focus) ui::StrokeRound(dc, r, S(10), ui::col::Accent, float(S(2)));
   SetBkMode(dc, TRANSPARENT);
   DrawTextAt(dc, kPages[i].glyph, {r.left + S(14), r.top, r.left + S(40), r.bottom}, g.fontIcon,
              sel ? ui::col::Accent : ui::col::Sub, DT_LEFT | DT_VCENTER);
@@ -1648,7 +1653,7 @@ HFONT MakeFont(int tenthsOfPoint, int weight) {
 }
 
 // Icone della barra laterale: Segoe Fluent Icons (Windows 11), altrimenti Segoe MDL2 Assets (Windows 10).
-HFONT MakeIconFont() {
+HFONT MakeIconFont(int px = 16) {
   static const wchar_t* face = [] {
     LOGFONTW lf{};
     lf.lfCharSet = DEFAULT_CHARSET;
@@ -1662,7 +1667,7 @@ HFONT MakeIconFont() {
     ReleaseDC(nullptr, dc);
     return found ? L"Segoe Fluent Icons" : L"Segoe MDL2 Assets";
   }();
-  return CreateFontW(-S(16), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+  return CreateFontW(-S(px), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                      CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, face);
 }
 
@@ -1691,8 +1696,9 @@ void Relayout(int clientW, int clientH) {
   SetPropW(g.wnd, ui::kScaleProp, reinterpret_cast<HANDLE>(static_cast<uintptr_t>(MulDiv(1000, g.dpi, 96))));
 
   if (rescale) {
-    const HFONT old[] = {g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontIcon};
+    const HFONT old[] = {g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontIcon, g.fontIconBig};
     g.fontIcon = MakeIconFont();
+    g.fontIconBig = MakeIconFont(21);
     g.font = MakeFont(95, FW_NORMAL);
     g.fontBold = MakeFont(95, FW_SEMIBOLD);
     g.fontTitle = MakeFont(160, FW_BOLD);
@@ -1743,6 +1749,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
   ui::RegisterColorWheel(inst);
   ui::RegisterOverlayPreview(inst);
   g.fontIcon = MakeIconFont();
+  g.fontIconBig = MakeIconFont(21);
   g.font = MakeFont(95, FW_NORMAL);
   g.fontBold = MakeFont(95, FW_SEMIBOLD);
   g.fontTitle = MakeFont(160, FW_BOLD);
@@ -1815,6 +1822,7 @@ int RunSettingsWindow(HINSTANCE inst, int show) {
     DispatchMessageW(&msg);
   }
   for (HGDIOBJ o : std::initializer_list<HGDIOBJ>{g.font, g.fontBold, g.fontTitle, g.fontSection, g.fontDlg, g.fontIcon,
+                                                  g.fontIconBig,
                                                   g.brBg, g.brPanel, g.brInput, g.brInputOff, g.brSide})
     DeleteObject(o);
   if (g.icon) DestroyIcon(g.icon);
