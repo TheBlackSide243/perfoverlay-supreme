@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PerfOverlaySupreme VERSION 1.7.0 LANGUAGES CXX)
+project(PerfOverlaySupreme VERSION 1.8.0 LANGUAGES CXX)
 
 if(NOT MSVC)
   message(FATAL_ERROR "PerfOverlay richiede MSVC (Visual Studio 2022 o Build Tools).")
@@ -48,6 +48,7 @@ add_executable(PerfOverlay WIN32
   src/monitor/app.cpp
   src/monitor/frame_source.cpp
   src/monitor/game_detector.cpp
+  src/monitor/bottleneck.cpp
   src/monitor/overlay_window.cpp
   src/monitor/overlay_content.cpp
   src/monitor/rtss_text.cpp

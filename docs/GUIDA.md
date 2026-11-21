@@ -12,6 +12,7 @@
 - [Sensori di sistema](#sensori-di-sistema)
 - [Temperatura CPU](#temperatura-cpu)
 - [Prova dell'overlay (DirectX 11 / 12)](#prova-delloverlay-directx-11--12)
+- [Che cosa limita gli FPS, frame generati e grafico del frame time](#che-cosa-limita-gli-fps-frame-generati-e-grafico-del-frame-time)
 - [Hotkey](#hotkey)
 - [Benchmark e riepilogo delle partite](#benchmark-e-riepilogo-delle-partite)
 - [Lingua](#lingua)
@@ -159,9 +160,40 @@ Per aprire la scena di prova usa Tray › **"Test overlay (DirectX 11/12)"** opp
 | F1 / F2 | DirectX 11 / DirectX 12 |
 | V | VSync on/off |
 | L | limite FPS (off / 30 / 60 / 144) |
+| G | frame generation simulata: un frame su due viene dichiarato "generato" |
 | Su / Giù | carico GPU |
 | F11 o Alt+Invio | schermo intero senza bordi |
 | Esc | esci |
+
+## Che cosa limita gli FPS, frame generati e grafico del frame time
+
+Tre aiuti per capire come sta girando il gioco. I primi due si accendono in Impostazioni › Elementi e sensori › Elementi visibili; il terzo compare da solo.
+
+### "LIM": che cosa limita gli FPS
+
+Con la spunta **"Limitato da (CPU / GPU)"** accanto agli FPS compare `LIM` seguito da:
+
+| Scritta | Significato |
+|---|---|
+| `GPU` | la scheda video è al massimo: per avere più FPS serve abbassare grafica o risoluzione |
+| `CPU` | la scheda video ha margine: gli FPS dipendono dal processore o dal gioco, abbassare la grafica cambia poco |
+| `FPS` | un limitatore di FPS (del gioco, del driver o di un altro programma) tiene i frame a un ritmo fisso |
+| `V-SYNC` | i frame seguono la frequenza del monitor |
+
+È una stima, ricavata dall'utilizzo della scheda video, dal core più carico, dalla regolarità dei frame e dall'impostazione del V-Sync. Dopo un cambio servono alcuni secondi perché la scritta si aggiorni. Nelle registrazioni della sezione Benchmark c'è la stessa informazione come percentuale del tempo ("Limitato da: GPU 82%, CPU 12%").
+
+### Grafico del frame time
+
+Con la spunta **"Grafico frame time"** compare un piccolo grafico con il tempo di ogni frame recente: una linea piatta vuol dire frame regolari, i picchi sono gli scatti. È diverso dal "Mini-grafico FPS", che mostra la media degli FPS nel tempo.
+
+### Frame generati
+
+Quando la frame generation è attiva e il driver o il gioco la dichiarano, il numero grande degli FPS è quello che arriva sullo schermo e accanto compare `REALI` con i frame disegnati davvero dal gioco. Nei benchmark resta scritta la quota di frame generati.
+
+- **Riconosciuta**: AMD FSR Frame Generation, AMD AFMF e Intel XeSS-FG, se driver e gioco sono abbastanza recenti da dichiararla.
+- **Non riconosciuta**: NVIDIA DLSS Frame Generation, che non la dichiara. In quel caso l'overlay mostra solo gli FPS totali.
+
+Questa parte è stata provata con la frame generation simulata della scena di prova (tasto G), non ancora con giochi veri: se in un gioco con FSR o XeSS-FG la scritta `REALI` non compare, nel log (`overlay.log`) manca la riga "Frame generation rilevata".
 
 ## Hotkey
 
@@ -270,5 +302,7 @@ Per aprire la cartella dalle impostazioni: "Apri cartella dati".
 
 ## Limiti
 
+- La latenza (dal clic allo schermo) non viene misurata: richiede di seguire ogni frame fino al monitor.
+- La frame generation di NVIDIA (DLSS) non viene distinta dai frame veri: vedi [Frame generati](#frame-generati).
 - Nel fullscreen **esclusivo** l'overlay non si vede. Usa la modalità "Finestra senza bordi" del gioco. Quando un gioco usa il fullscreen esclusivo PerfOverlay Supreme lo segnala con una notifica, una volta per gioco (si disattiva in Impostazioni › Generali → "Avvisa se un gioco usa il fullscreen esclusivo"). La finestra del gioco non viene mai modificata.
 - Alcuni giochi competitivi vietano gli overlay di terze parti: controlla i termini del gioco.

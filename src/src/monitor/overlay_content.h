@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "common/config.h"
+#include "monitor/bottleneck.h"
 #include "monitor/frame_source.h"
 #include "monitor/overlay_window.h"
 #include "monitor/stats.h"
@@ -17,6 +18,7 @@ struct ContentInput {
   bool frameSourceAvailable = true;
   std::wstring toast;                     // messaggio temporaneo (es. cambio profilo)
   bool toastAlert = false;                // messaggio in rosso (registrazione in corso)
+  Limit limit = Limit::Unknown;           // che cosa limita gli FPS (mostrato come "LIM")
 };
 
 // Traduce le metriche in righe di segmenti. Ordine: FPS, frame time, CPU, GPU, RAM, batteria.

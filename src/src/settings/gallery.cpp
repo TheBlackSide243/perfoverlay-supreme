@@ -75,6 +75,7 @@ const BasePreset kBase[] = {
      [](Profile& p) {
        Reset(p, "vertical", "top-left", 22, 75);
        p.SetField("fps", "low1", true);
+       p.show.bottleneck = p.show.frameGraph = true;
      }},
     {T(L"Trasparente"), T(L"Barra senza sfondo, solo testo: disturba il meno possibile."),
      [](Profile& p) { Reset(p, "bar", "top-left", 15, 0); }},

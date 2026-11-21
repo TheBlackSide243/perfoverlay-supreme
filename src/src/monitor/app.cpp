@@ -286,9 +286,30 @@ RunSummary App::MakeRunMeta(const char* kind, const ForegroundInfo& fg, const Sy
 }
 
 // Passa ai registratori i frame nuovi del gioco in primo piano e una lettura dei sensori.
-void App::UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys) {
+double App::RefreshHz(HWND game) {
+  const ULONGLONG now = GetTickCount64();
+  if (refreshReadAt_ && now - refreshReadAt_ < 5000) return refreshHz_;
+  refreshReadAt_ = now;
+  refreshHz_ = 0;
+  MONITORINFOEXW mi{};
+  mi.cbSize = sizeof(mi);
+  DEVMODEW dm{};
+  dm.dmSize = sizeof(dm);
+  if (GetMonitorInfoW(MonitorFromWindow(game, MONITOR_DEFAULTTONEAREST), &mi) &&
+      EnumDisplaySettingsW(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency > 1)
+    refreshHz_ = double(dm.dmDisplayFrequency);
+  return refreshHz_;
+}
+
+void App::UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys, const FrameStats& fs,
+                          Limit limit) {
   const DWORD game = isGame && framesOk_ ? fg.pid : 0;
   SensorSample smp;
+  smp.limit = limit == Limit::Gpu ? 1 : limit == Limit::Cpu ? 2 : limit == Limit::Cap || limit == Limit::VSync ? 3 : 0;
+  if (fs.valid && fs.fpsGenerated > 0 && fs.fpsDisplayed > 0) {
+    smp.generatedShare = fs.fpsGenerated / fs.fpsDisplayed;
+    smp.fgTech = fs.fgTech;
+  }
   if (sys.ready) {
     smp.cpu = sys.cpu.usage.value_or(-1);
     smp.gpu = sys.gpu.usage.value_or(-1);
@@ -307,8 +328,8 @@ void App::UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSna
       bench_.AddFrames(frames_.Since(benchPid_, bench_.LastTimestamp()));
       bench_.AddSample(smp);
       bench_.SetApi(frames_.Api(benchPid_));
-      const double limit = cfg_.benchmarkSeconds > 0 ? double(cfg_.benchmarkSeconds) : kMaxBenchmarkSeconds;
-      if (bench_.Seconds() >= limit) StopBenchmark();
+      const double maxSeconds = cfg_.benchmarkSeconds > 0 ? double(cfg_.benchmarkSeconds) : kMaxBenchmarkSeconds;
+      if (bench_.Seconds() >= maxSeconds) StopBenchmark();
     }
   }
 
@@ -430,7 +451,36 @@ void App::Tick() {
   }
   lastGamePid_ = isGame ? fg.pid : 0;
   stats_.SetGamePid(lastGamePid_);
-  UpdateRecorders(fg, isGame, sys);
+
+  // Frame del gioco e che cosa li sta limitando: servono all'overlay e alle registrazioni.
+  FrameStats fs;
+  if (isGame && framesOk_) fs = frames_.Query(fg.pid, cfg_.graphSeconds);
+  LimitInput li;
+  li.valid = fs.valid;
+  li.fps = fs.fps;
+  li.frameCv = fs.frameCv;
+  li.gpuUsage = sys.ready ? sys.gpu.usage.value_or(-1) : -1;
+  li.syncInterval = fs.syncInterval;
+  li.refreshHz = isGame ? RefreshHz(fg.hwnd) : 0;
+  li.cpuTopCore = sys.ready ? sys.cpu.topCoreUsage.value_or(-1) : -1;
+  const Limit limit = limit_.Update(li);
+  if (limit != loggedLimit_ && GetTickCount64() - limitLoggedAt_ > 5000) {  // nel log, ma senza riempirlo
+    static constexpr const char* kNames[] = {"-", "GPU", "CPU", "limite FPS", "V-Sync"};
+    if (limit != Limit::Unknown)
+      LogInfo("Limite degli FPS: {} (GPU {:.0f}%, {:.0f} FPS, regolarità {:.3f}, sync {}, monitor {:.0f} Hz)",
+              kNames[int(limit)], li.gpuUsage, li.fps, li.frameCv, li.syncInterval, li.refreshHz);
+    loggedLimit_ = limit;
+    limitLoggedAt_ = GetTickCount64();
+  }
+  if (fs.fgTech != loggedFrameGen_) {
+    if (!fs.fgTech.empty())
+      LogInfo("Frame generation rilevata: {} ({:.0f} FPS reali, {:.0f} generati)", fs.fgTech, fs.fpsReal,
+              fs.fpsGenerated);
+    else if (fs.valid)
+      LogInfo("Frame generation non più attiva");
+    if (!fs.fgTech.empty() || fs.valid) loggedFrameGen_ = fs.fgTech;
+  }
+  UpdateRecorders(fg, isGame, sys, fs, limit);
 
   enum class Mode { None, Game, Compact } mode = Mode::None;
   if (isGame)
@@ -455,10 +505,8 @@ void App::Tick() {
     lastProfile_ = profile.name;
   }
 
-  FrameStats fs;
-  if (mode == Mode::Game && framesOk_) fs = frames_.Query(fg.pid, cfg_.graphSeconds);
-
   ContentInput in;
+  in.limit = limit;
   in.profile = &profile;
   in.frames = mode == Mode::Game ? &fs : nullptr;
   in.system = &sys;

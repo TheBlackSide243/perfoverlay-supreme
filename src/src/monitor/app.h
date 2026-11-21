@@ -9,6 +9,7 @@
 #include "common/benchmark.h"
 #include "common/config.h"
 #include "settings/updater.h"
+#include "monitor/bottleneck.h"
 #include "monitor/frame_source.h"
 #include "monitor/game_detector.h"
 #include "monitor/overlay_window.h"
@@ -39,7 +40,9 @@ class App {
   void CycleProfile();
   void ForceProfile(const std::string& name);
   void ShowToast(const std::wstring& text, ULONGLONG ms = 0);  // ms = 0: durata normale
-  void UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys);
+  void UpdateRecorders(const ForegroundInfo& fg, bool isGame, const SystemSnapshot& sys, const FrameStats& fs,
+                       Limit limit);
+  double RefreshHz(HWND game);  // frequenza del monitor su cui sta il gioco (riletta ogni pochi secondi)
   void UpdateBenchmarkHotkey();  // la hotkey del benchmark è attiva solo con un gioco in primo piano
   void ToggleBenchmark();
   void StopBenchmark();
@@ -78,6 +81,13 @@ class App {
   std::set<std::string> fullscreenHinted_;  // giochi già avvisati del fullscreen esclusivo (per sessione)
   std::string lastProfile_;
   bool inTick_ = false;
+
+  LimitDetector limit_;           // che cosa limita gli FPS del gioco in primo piano
+  Limit loggedLimit_ = Limit::Unknown;
+  ULONGLONG limitLoggedAt_ = 0;
+  std::string loggedFrameGen_;
+  double refreshHz_ = 0;
+  ULONGLONG refreshReadAt_ = 0;
 
   RunRecorder bench_;             // benchmark avviato con la hotkey
   DWORD benchPid_ = 0;

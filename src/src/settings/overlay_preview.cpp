@@ -61,6 +61,9 @@ void FillSample(Preview& pv) {
     const float dip = i > 34 && i < 40 ? -14.0f : 0.0f;
     f.history.push_back(114.0f + 9.0f * std::sin(i * 0.33f) + 5.0f * std::sin(i * 1.27f) + dip);
   }
+  f.frameTimes.clear();
+  for (int i = 0; i < 240; ++i)  // frame regolari con qualche scatto
+    f.frameTimes.push_back(8.5f + 0.5f * std::sin(i * 0.9f) + (i % 67 == 40 ? 9.0f : i % 41 == 12 ? 4.0f : 0.0f));
   SystemSnapshot& s = pv.system;
   s.ready = true;
   s.cpu.usage = 34;
@@ -149,6 +152,7 @@ void Draw(HWND hwnd, Preview& pv, const RECT& rc) {
     in.profile = &p;
     in.frames = &pv.frames;
     in.system = &pv.system;
+    in.limit = Limit::Gpu;  // come nell'esempio: GPU al 97%
     const std::vector<Row> rows = BuildRows(in);
     const float margin = std::max(0.0f, float(p.margin)) * ui;
     D2D1_SIZE_F size = DrawRowsPreview(nullptr, g_dwrite.Get(), rows, p, ui, 0, 0);

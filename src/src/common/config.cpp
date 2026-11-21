@@ -89,7 +89,8 @@ void from_json(const json& j, GameEntry& g) {
 void to_json(json& j, const ShowFlags& s) {
   j = json{{"fps", s.fps},         {"graph", s.graph},     {"frametime", s.frametime},
            {"percentiles", s.percentiles}, {"stutter", s.stutter}, {"cpu", s.cpu},
-           {"gpu", s.gpu},         {"ram", s.ram},         {"battery", s.battery}};
+           {"gpu", s.gpu},         {"ram", s.ram},         {"battery", s.battery},
+           {"bottleneck", s.bottleneck}, {"frameGraph", s.frameGraph}};
 }
 void from_json(const json& j, ShowFlags& s) {
   Get(j, "fps", s.fps);
@@ -101,6 +102,8 @@ void from_json(const json& j, ShowFlags& s) {
   Get(j, "gpu", s.gpu);
   Get(j, "ram", s.ram);
   Get(j, "battery", s.battery);
+  Get(j, "bottleneck", s.bottleneck);
+  Get(j, "frameGraph", s.frameGraph);
 }
 
 void to_json(json& j, const ElementColors& c) {

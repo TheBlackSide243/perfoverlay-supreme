@@ -2,13 +2,14 @@
 // scala con la risoluzione). Disegna una scena animata con un carico GPU regolabile.
 //
 //   F1 = DirectX 11   F2 = DirectX 12   V = VSync   L = limite FPS (off/30/60/144)
-//   Su/Giù = carico GPU   F11 o Alt+Invio = schermo intero senza bordi   Esc = esci
+//   G = frame generation simulata   Su/Giù = carico GPU   F11 o Alt+Invio = schermo intero senza bordi   Esc = esci
 //   PerfOverlaySupreme.exe --test [dx11|dx12]
 #include <windows.h>
 #include <d3d11.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
+#include <evntprov.h>
 #include <wrl/client.h>
 
 #include <algorithm>
@@ -17,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "common/resources.h"
+#include "common/resources.h"
 #include "common/i18n.h"
 
 using po::TF;
@@ -58,6 +59,30 @@ float4 PS(float4 pos : SV_Position) : SV_Target {
 struct Consts {
   float t, w, h, iters;
 };
+
+// Frame generation simulata (tasto G): prima di ogni Present annuncia se quel frame è "del gioco" o "generato",
+// uno sì e uno no, con lo stesso evento ETW che usano driver e SDK veri (provider Intel-PresentMon,
+// PresentFrameType_Info). Serve a provare l'overlay senza un gioco con la frame generation.
+bool g_simFrameGen = false;
+void AnnounceFrameType() {
+  if (!g_simFrameGen) return;
+  static constexpr GUID kProvider = {0xECAA4712, 0x4644, 0x442F, {0xB9, 0x4C, 0xA3, 0x2F, 0x6C, 0xF8, 0xA4, 0x99}};
+  static REGHANDLE provider = 0;
+  static uint32_t frame = 0;
+  if (!provider && EventRegister(&kProvider, nullptr, nullptr, &provider) != ERROR_SUCCESS) return;
+#pragma pack(push, 1)
+  struct {
+    uint32_t frameId;
+    uint8_t frameType;  // 1 = del gioco, 101 = generato (AMD FSR)
+    uint32_t appFrameId;
+  } payload{frame, uint8_t(frame % 2 ? 101 : 1), frame / 2};
+#pragma pack(pop)
+  const EVENT_DESCRIPTOR desc{1, 1, 0, 4, 0, 1, 0x1};  // id 1, versione 1, livello informativo, keyword FrameTypes
+  EVENT_DATA_DESCRIPTOR data;
+  EventDataDescCreate(&data, &payload, sizeof(payload));
+  EventWrite(provider, &desc, 1, &data);
+  ++frame;
+}
 
 ComPtr<ID3DBlob> Compile(const char* entry, const char* target) {
   ComPtr<ID3DBlob> code, err;
@@ -149,6 +174,7 @@ class Dx11 : public Renderer {
     ctx_->PSSetShader(ps_.Get(), nullptr, 0);
     ctx_->PSSetConstantBuffers(0, 1, cb_.GetAddressOf());
     ctx_->Draw(3, 0);
+    AnnounceFrameType();
     sc_->Present(vsync ? 1 : 0, !vsync && tearing_ ? DXGI_PRESENT_ALLOW_TEARING : 0);
   }
 
@@ -272,6 +298,7 @@ class Dx12 : public Renderer {
     list_->Close();
     ID3D12CommandList* lists[] = {list_.Get()};
     queue_->ExecuteCommandLists(1, lists);
+    AnnounceFrameType();
     sc_->Present(vsync ? 1 : 0, !vsync && tearing_ ? DXGI_PRESENT_ALLOW_TEARING : 0);
     queue_->Signal(fence_.Get(), ++fenceValue_);
     frameFence_[i] = fenceValue_;
@@ -392,6 +419,7 @@ LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case VK_F11: ToggleFullscreen(); break;
         case 'V': g.vsync = !g.vsync; break;
         case 'L': g.limitIdx = (g.limitIdx + 1) % int(std::size(kLimits)); break;
+        case 'G': g_simFrameGen = !g_simFrameGen; break;
         case VK_UP: g.load = std::min(g.load + 1, 10); break;
         case VK_DOWN: g.load = std::max(g.load - 1, 0); break;
       }
@@ -483,11 +511,11 @@ int RunOverlayTest(HINSTANCE inst, const wchar_t* cmd, int show) {
     if (since >= 0.5) {
       const int lim = kLimits[g.limitIdx];
       SetWindowTextW(g.hwnd,
-                     TF(L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  carico {}/10  ·  VSync {}  ·  "
-                                 L"limite {}  ·  {}   [F1 DX11  F2 DX12  V  L  Su/Giù  F11  Esc]",
-                                 g.r->Name(), int(std::lround(frames / since)), g.w, g.h, g.load,
-                                 g.vsync ? L"ON" : L"OFF", lim ? std::to_wstring(lim) : std::wstring(L"off"),
-                                 g.r->adapter)
+                     (TF(L"PerfOverlay Test  ·  {}  ·  {} FPS  ·  {}x{}  ·  carico {}/10  ·  VSync {}  ·  "
+                         L"limite {}  ·  {}   [F1 DX11  F2 DX12  V  L  Su/Giù  F11  Esc]",
+                         g.r->Name(), int(std::lround(frames / since)), g.w, g.h, g.load,
+                         g.vsync ? L"ON" : L"OFF", lim ? std::to_wstring(lim) : std::wstring(L"off"), g.r->adapter) +
+                      (g_simFrameGen ? L"  ·  FG sim" : L""))
                          .c_str());
       frames = 0;
       titleAt = now;

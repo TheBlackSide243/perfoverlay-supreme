@@ -26,6 +26,15 @@ struct FrameStats {
   std::string api;                // "DXGI" (DX10-12), "D3D9", "DxgKrnl" (Vulkan/OpenGL e altri)
   std::vector<float> frameTimes;  // ultimi frame time in ms (max 1000), dal più vecchio (preset RTSS avanzati)
   double fpsAvg = 0;              // media sulla finestra del grafico
+  double frameCv = 0;             // regolarità dell'ultimo secondo: deviazione standard dei frame time / media
+  int syncInterval = -1;          // intervallo di sincronia dell'ultimo Present DXGI (0 = V-Sync spento); -1 = ignoto
+  bool tearing = false;           // ultimo Present con DXGI_PRESENT_ALLOW_TEARING
+  // Frame generation, quando driver o gioco la dichiarano (provider ETW Intel-PresentMon): AMD FSR e AFMF,
+  // Intel XeSS-FG. NVIDIA DLSS Frame Generation non la dichiara: lì questi campi restano a zero.
+  double fpsGenerated = 0;        // frame generati nell'ultimo secondo
+  double fpsReal = 0;             // frame renderizzati dal gioco
+  double fpsDisplayed = 0;        // reali + generati
+  std::string fgTech;             // "AMD FSR", "AMD AFMF", "Intel XeSS-FG"; vuoto = nessuna
 };
 
 // Conta i frame di tutti i processi tramite una sessione ETW in tempo reale
@@ -51,9 +60,14 @@ class FrameSource {
     std::deque<int64_t> ts;  // timestamp QPC dei Present
     int64_t lastApiTs = 0;   // ultimo evento DXGI/D3D9 (per scartare i duplicati del kernel)
     std::string api;
+    int sync = -1;           // SyncInterval dell'ultimo Present DXGI
+    bool tearing = false;
+    std::deque<int64_t> generated, original;  // annunci di frame generati / del gioco (ultimi secondi)
+    uint8_t fgType = 0;      // tipo dell'ultimo frame generato (codici del provider Intel-PresentMon)
   };
   static VOID WINAPI OnEvent(PEVENT_RECORD rec);
-  void Add(DWORD pid, int64_t t, const char* api, bool fromApi);
+  void Add(DWORD pid, int64_t t, const char* api, bool fromApi, int sync = -1, uint32_t flags = 0);
+  void AddFrameType(DWORD pid, int64_t t, uint8_t type);
   bool EnableProvider(const GUID& guid, std::initializer_list<USHORT> ids);
   void StopSession();
 

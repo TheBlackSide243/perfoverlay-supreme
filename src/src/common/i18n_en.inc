@@ -405,6 +405,13 @@ constexpr WEntry kWide[] = {
     {L"GPU fino a {} °C.", L"GPU up to {} °C."},
     {L"CPU fino a {} °C.", L"CPU up to {} °C."},
     {L"I dettagli sono in Impostazioni › Benchmark.", L"Details are in Settings › Benchmark."},
+    {L"Limitato da (CPU / GPU)", L"Limited by (CPU / GPU)"},
+    {L"Grafico frame time", L"Frame time graph"},
+    {L"FPS reali (frame generation)", L"Real FPS (frame generation)"},
+    {L"  REALI ", L"  REAL "},
+    {L"Limitato da: ", L"Limited by: "},
+    {L"limite FPS", L"FPS cap"},
+    {L"Frame generati: {} ({})", L"Generated frames: {} ({})"},
 };
 
 constexpr NEntry kNarrow[] = {

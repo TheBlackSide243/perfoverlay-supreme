@@ -29,6 +29,11 @@ struct RunSummary {
   // Sensori: 0 = dato non disponibile.
   double cpuAvg = 0, cpuMax = 0, gpuAvg = 0, gpuMax = 0;
   double cpuTempMax = 0, gpuTempMax = 0, gpuPowerAvg = 0, ramMaxGB = 0, vramMaxGB = 0;
+  // Che cosa ha limitato gli FPS, in % del tempo registrato (la somma può restare sotto 100: tempo non classificato).
+  double gpuBoundPct = 0, cpuBoundPct = 0, capPct = 0;
+  // Frame generation dichiarata da driver o gioco: tecnologia e quota di frame generati sul totale mostrato.
+  std::string fgTech;
+  double generatedPct = 0;
 
   int step = 1;                      // secondi tra un punto e l'altro delle serie
   std::vector<float> fps, cpu, gpu;  // una voce per intervallo
@@ -45,6 +50,9 @@ struct RunData {
 struct SensorSample {
   double cpu = -1, gpu = -1;  // %, -1 = assente
   double cpuTemp = -1, gpuTemp = -1, gpuPower = -1, ramGB = -1, vramGB = -1;
+  int limit = 0;               // 0 = non classificato, 1 = GPU, 2 = CPU, 3 = limitatore o V-Sync
+  double generatedShare = 0;   // frame generati / frame mostrati in questo istante (0 = nessuno)
+  std::string fgTech;
 };
 
 // Accumula i frame di un processo e ne ricava il riepilogo. Non tiene tutti i frame in memoria
@@ -98,6 +106,8 @@ class RunRecorder {
   uint32_t cpuN_ = 0, gpuN_ = 0, powerN_ = 0;
   double stepCpu_ = 0, stepGpu_ = 0;
   uint32_t stepCpuN_ = 0, stepGpuN_ = 0;
+  uint32_t samples_ = 0, limitN_[4] = {};
+  double generatedSum_ = 0;
 };
 
 std::filesystem::path BenchmarksDir();  // creata se manca

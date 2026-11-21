@@ -71,6 +71,11 @@ json ToJson(const RunSummary& s) {
           {"gpuPowerAvg", Round(s.gpuPowerAvg, 0.1)},
           {"ramMaxGB", Round(s.ramMaxGB, 0.01)},
           {"vramMaxGB", Round(s.vramMaxGB, 0.01)},
+          {"gpuBoundPct", Round(s.gpuBoundPct, 0.1)},
+          {"cpuBoundPct", Round(s.cpuBoundPct, 0.1)},
+          {"capPct", Round(s.capPct, 0.1)},
+          {"fgTech", s.fgTech},
+          {"generatedPct", Round(s.generatedPct, 0.1)},
           {"step", s.step},
           {"fps", Series(s.fps)},
           {"cpu", Series(s.cpu)},
@@ -108,6 +113,11 @@ RunSummary FromJson(const json& j) {
   Read(j, "gpuPowerAvg", s.gpuPowerAvg);
   Read(j, "ramMaxGB", s.ramMaxGB);
   Read(j, "vramMaxGB", s.vramMaxGB);
+  Read(j, "gpuBoundPct", s.gpuBoundPct);
+  Read(j, "cpuBoundPct", s.cpuBoundPct);
+  Read(j, "capPct", s.capPct);
+  Read(j, "fgTech", s.fgTech);
+  Read(j, "generatedPct", s.generatedPct);
   Read(j, "step", s.step);
   Read(j, "fps", s.fps);
   Read(j, "cpu", s.cpu);
@@ -189,6 +199,10 @@ void RunRecorder::SetWindow(const std::string& title, int width, int height) {
 
 void RunRecorder::AddSample(const SensorSample& s) {
   if (!active_ || !prev_) return;  // in pausa i sensori non descrivono il gioco
+  ++samples_;
+  ++limitN_[s.limit >= 0 && s.limit < 4 ? s.limit : 0];
+  generatedSum_ += s.generatedShare;
+  if (!s.fgTech.empty()) meta_.fgTech = s.fgTech;
   if (s.cpu >= 0) {
     cpuSum_ += s.cpu;
     ++cpuN_;
@@ -272,6 +286,12 @@ RunData RunRecorder::Finish() {
   s.cpuAvg = cpuN_ ? cpuSum_ / cpuN_ : 0;
   s.gpuAvg = gpuN_ ? gpuSum_ / gpuN_ : 0;
   s.gpuPowerAvg = powerN_ ? powerSum_ / powerN_ : 0;
+  if (samples_) {
+    s.gpuBoundPct = 100.0 * limitN_[1] / samples_;
+    s.cpuBoundPct = 100.0 * limitN_[2] / samples_;
+    s.capPct = 100.0 * limitN_[3] / samples_;
+    s.generatedPct = 100.0 * generatedSum_ / samples_;
+  }
   out.s = std::move(meta_);
   out.frameTimes = std::move(frameTimes_);
   return out;

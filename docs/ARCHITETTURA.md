@@ -45,7 +45,8 @@ src/
   src/monitor/
     main.cpp              dispatcher delle modalità
     app.*                 ciclo principale, tray, hotkey, selezione profilo, benchmark e riepilogo delle partite
-    frame_source.*        FPS via ETW
+    frame_source.*        FPS via ETW; legge anche V-Sync (payload di Present) e frame generati (Intel-PresentMon)
+    bottleneck.*          che cosa limita gli FPS: GPU, CPU, limitatore o V-Sync (stima, con isteresi)
     game_detector.*       rilevamento gioco (lista + euristica + auto-apprendimento)
     overlay_window.*      renderer D3D11 + DirectComposition + Direct2D/DirectWrite
     overlay_content.*     impaginazione (barra / verticale / libero), soglie colore
@@ -91,6 +92,9 @@ Aggiornamento automatico (`autoUpdate`, "Aggiornamenti: Automatici"): lo fa l'ov
 | Dato | Sorgente | Fallback |
 |---|---|---|
 | FPS, frame time, P95/P99, 1% low, stutter | eventi ETW `Present` | `n/d` se ETW non è disponibile |
+| V-Sync e tearing | campi `SyncInterval` e `Flags` dell'evento DXGI `Present_Start` | ignoti fuori da DXGI |
+| Frame generati (AMD FSR e AFMF, Intel XeSS-FG) | evento `PresentFrameType_Info` del provider ETW Intel-PresentMon, emesso da driver e SDK | nessuna distinzione (es. NVIDIA DLSS-FG) |
+| Che cosa limita gli FPS | `monitor/bottleneck.*`: utilizzo GPU, core più carico, regolarità e stabilità dei frame, V-Sync, frequenza del monitor | "sconosciuto" senza FPS |
 | CPU utilizzo, per core, frequenza | PDH `% Processor Utility` / `% Processor Performance` | `% Processor Time` |
 | CPU temperatura / potenza | HWiNFO → LibreHardwareMonitor (WMI o HTTP `127.0.0.1:8085`) | omessa |
 | GPU NVIDIA (tutti i sensori) | NVML, caricata dinamicamente | contatori `GPU Engine` / DXGI |

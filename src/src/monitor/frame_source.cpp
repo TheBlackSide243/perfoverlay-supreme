@@ -23,7 +23,15 @@ constexpr GUID kD3D9Provider = {0x783ACA0A, 0x790E, 0x4D7F, {0x84, 0x51, 0xAA, 0
 // Microsoft-Windows-DxgKrnl: Present (184) — copre le API che non passano da DXGI (es. Vulkan, OpenGL)
 constexpr GUID kDxgKrnlProvider = {0x802EC45A, 0x1E99, 0x4B83, {0x99, 0x20, 0x87, 0xC9, 0x82, 0x77, 0xBA, 0x9D}};
 
+// Intel-PresentMon: PresentFrameType_Info (1). Lo emettono i driver e gli SDK che generano frame (AMD FSR e AFMF,
+// Intel XeSS-FG) sul thread che sta per presentare, per dire se quel frame è del gioco o generato.
+// Payload: FrameId (u32), FrameType (u8), dalla versione 1 anche AppFrameId (u32).
+constexpr GUID kIntelPresentMonProvider = {0xECAA4712, 0x4644, 0x442F, {0xB9, 0x4C, 0xA3, 0x2F, 0x6C, 0xF8, 0xA4, 0x99}};
+constexpr uint8_t kFrameOriginal = 1, kFrameIntelXefg = 50, kFrameAmdAfmf = 100, kFrameAmdFsrFg = 101;
+constexpr uint32_t kPresentAllowTearing = 0x200;  // DXGI_PRESENT_ALLOW_TEARING
+
 constexpr int kKeepSeconds = 310;  // copre il massimo di graphSeconds (300)
+constexpr int kKeepFrameTypeSeconds = 5;
 
 std::vector<BYTE> MakeProperties() {
   const size_t size = sizeof(EVENT_TRACE_PROPERTIES) + sizeof(kSessionName);
@@ -65,7 +73,8 @@ bool FrameSource::Start() {
   const bool dxgi = EnableProvider(kDxgiProvider, {42, 55});
   const bool d3d9 = EnableProvider(kD3D9Provider, {1});
   const bool krnl = EnableProvider(kDxgKrnlProvider, {184});
-  LogInfo("ETW: provider DXGI={} D3D9={} DxgKrnl={}", dxgi, d3d9, krnl);
+  const bool frameType = EnableProvider(kIntelPresentMonProvider, {1});
+  LogInfo("ETW: provider DXGI={} D3D9={} DxgKrnl={} FrameType={}", dxgi, d3d9, krnl, frameType);
   if (!dxgi && !krnl) {
     StopSession();
     return false;
@@ -148,7 +157,22 @@ VOID WINAPI FrameSource::OnEvent(PEVENT_RECORD rec) {
   if (pid == 0 || pid == 4) return;
   const int64_t t = h.TimeStamp.QuadPart;
   if (IsEqualGUID(h.ProviderId, kDxgiProvider)) {
-    if (id == 42 || id == 55) self->Add(pid, t, "DXGI", true);
+    if (id == 42 || id == 55) {
+      // Payload: pIDXGISwapChain (puntatore del processo che presenta), Flags (u32), SyncInterval (i32).
+      int sync = -1;
+      uint32_t flags = 0;
+      const size_t ptr = (h.Flags & EVENT_HEADER_FLAG_32_BIT_HEADER) ? 4 : 8;
+      if (rec->UserData && rec->UserDataLength >= ptr + 8) {
+        const BYTE* d = static_cast<const BYTE*>(rec->UserData) + ptr;
+        std::memcpy(&flags, d, 4);
+        std::memcpy(&sync, d + 4, 4);
+        if (sync < 0 || sync > 4) sync = -1;
+      }
+      self->Add(pid, t, "DXGI", true, sync, flags);
+    }
+  } else if (IsEqualGUID(h.ProviderId, kIntelPresentMonProvider)) {
+    if (id == 1 && rec->UserData && rec->UserDataLength >= 5)
+      self->AddFrameType(pid, t, static_cast<const BYTE*>(rec->UserData)[4]);
   } else if (IsEqualGUID(h.ProviderId, kD3D9Provider)) {
     if (id == 1) self->Add(pid, t, "D3D9", true);
   } else if (IsEqualGUID(h.ProviderId, kDxgKrnlProvider)) {
@@ -156,12 +180,27 @@ VOID WINAPI FrameSource::OnEvent(PEVENT_RECORD rec) {
   }
 }
 
-void FrameSource::Add(DWORD pid, int64_t t, const char* api, bool fromApi) {
+void FrameSource::AddFrameType(DWORD pid, int64_t t, uint8_t type) {
+  const bool generated = type == kFrameIntelXefg || type == kFrameAmdAfmf || type == kFrameAmdFsrFg;
+  if (!generated && type != kFrameOriginal) return;  // frame ripetuti o tipi non noti: non contano
+  std::lock_guard lock(mu_);
+  auto& p = procs_[pid];
+  auto& list = generated ? p.generated : p.original;
+  if (generated) p.fgType = type;
+  list.push_back(t);
+  const int64_t oldest = t - int64_t(kKeepFrameTypeSeconds) * freq_;
+  for (auto* l : {&p.generated, &p.original})
+    while (!l->empty() && l->front() < oldest) l->pop_front();
+}
+
+void FrameSource::Add(DWORD pid, int64_t t, const char* api, bool fromApi, int sync, uint32_t flags) {
   std::lock_guard lock(mu_);
   auto& p = procs_[pid];
   if (fromApi) {
     p.lastApiTs = t;
     p.api = api;
+    p.sync = sync;
+    p.tearing = (flags & kPresentAllowTearing) != 0;
   } else if (p.lastApiTs && t - p.lastApiTs < 2 * freq_) {
     return;  // lo stesso frame è già stato contato dall'evento DXGI/D3D9
   } else {
@@ -207,12 +246,21 @@ std::string FrameSource::Api(DWORD pid) const {
 FrameStats FrameSource::Query(DWORD pid, int windowSeconds) const {
   FrameStats s;
   std::vector<int64_t> ts;
+  double generated = 0, original = 0;  // annunci nell'ultimo secondo
+  uint8_t fgType = 0;
   {
     std::lock_guard lock(mu_);
     const auto it = procs_.find(pid);
     if (it == procs_.end() || it->second.ts.size() < 2) return s;
-    ts.assign(it->second.ts.begin(), it->second.ts.end());
-    s.api = it->second.api;
+    const Proc& p = it->second;
+    ts.assign(p.ts.begin(), p.ts.end());
+    s.api = p.api;
+    s.syncInterval = p.sync;
+    s.tearing = p.tearing;
+    const int64_t from = p.ts.back() - freq_;
+    generated = double(p.generated.end() - std::upper_bound(p.generated.begin(), p.generated.end(), from));
+    original = double(p.original.end() - std::upper_bound(p.original.begin(), p.original.end(), from));
+    fgType = p.fgType;
   }
   LARGE_INTEGER now;
   QueryPerformanceCounter(&now);
@@ -226,13 +274,14 @@ FrameStats FrameSource::Query(DWORD pid, int windowSeconds) const {
   // Frame time sulla finestra e sull'ultimo secondo.
   std::vector<double> dts;
   dts.reserve(ts.size() - first);
-  double lastSecSum = 0;
+  double lastSecSum = 0, lastSecSq = 0;
   int lastSecCount = 0;
   for (size_t i = first; i < ts.size(); ++i) {
     const double dt = double(ts[i] - ts[i - 1]) * toMs;
     dts.push_back(dt);
     if (ts[i] > last - freq_) {
       lastSecSum += dt;
+      lastSecSq += dt * dt;
       ++lastSecCount;
     }
   }
@@ -240,6 +289,23 @@ FrameStats FrameSource::Query(DWORD pid, int windowSeconds) const {
 
   s.frameTimeMs = lastSecSum / lastSecCount;
   s.fps = s.frameTimeMs > 0 ? 1000.0 / s.frameTimeMs : 0;
+  if (s.frameTimeMs > 0)
+    s.frameCv = std::sqrt(std::max(0.0, lastSecSq / lastSecCount - s.frameTimeMs * s.frameTimeMs)) / s.frameTimeMs;
+
+  if (generated > 0) {
+    s.fpsGenerated = generated;
+    if (fgType == kFrameAmdAfmf) {
+      // AFMF lavora nel driver: i frame generati non passano dai Present del gioco, quindi si sommano.
+      s.fgTech = "AMD AFMF";
+      s.fpsReal = s.fps;
+      s.fpsDisplayed = s.fps + generated;
+    } else {
+      // FSR e XeSS-FG presentano dal gioco sia i frame veri sia quelli generati: i Present li contano già tutti.
+      s.fgTech = fgType == kFrameIntelXefg ? "Intel XeSS-FG" : "AMD FSR";
+      s.fpsDisplayed = s.fps;
+      s.fpsReal = original > 0 ? original : std::max(0.0, s.fps - generated);
+    }
+  }
 
   {
     double sum = 0;

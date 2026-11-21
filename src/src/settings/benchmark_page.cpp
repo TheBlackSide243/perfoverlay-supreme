@@ -351,7 +351,25 @@ void PaintView(HWND h, HDC dc, const RECT& rc, const View& v) {
     const int x = rc.left + cx * (tw + gap), y = top + cyi * (th + gap);
     DrawTile(dc, {x, y, cx == 3 ? rc.right : x + tw, y + th}, tiles[i], v.hasB, f, s);
   }
-  DrawGraph(dc, v, {rc.left + S(2), top + 2 * th + gap + S(12), rc.right - S(2), rc.bottom}, f, s);
+  // Riga sotto i riquadri: che cosa ha limitato gli FPS e quanti frame erano generati (solo se registrati).
+  auto share = [](double x) { return Num(x, 0) + L"%"; };
+  std::wstring note;
+  auto part = [&](const wchar_t* name, double pct) {
+    if (pct < 0.5) return;
+    note += (note.empty() ? std::wstring(T(L"Limitato da: ")) : std::wstring(L", ")) + name + L" " + share(pct);
+  };
+  part(L"GPU", v.a.gpuBoundPct);
+  part(L"CPU", v.a.cpuBoundPct);
+  part(T(L"limite FPS"), v.a.capPct);
+  if (!v.a.fgTech.empty() && v.a.generatedPct >= 0.5)
+    note += (note.empty() ? L"" : L".  ") + TF(L"Frame generati: {} ({})", share(v.a.generatedPct), ToWide(v.a.fgTech));
+  int graphTop = top + 2 * th + gap + S(12);
+  if (!note.empty()) {
+    Text(dc, note, {rc.left + S(4), graphTop - S(6), rc.right - S(4), graphTop + S(12)}, f.tiny, col::Sub,
+         DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS);
+    graphTop += S(20);
+  }
+  DrawGraph(dc, v, {rc.left + S(2), graphTop, rc.right - S(2), rc.bottom}, f, s);
 }
 
 LRESULT CALLBACK ViewProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {

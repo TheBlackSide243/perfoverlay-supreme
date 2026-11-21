@@ -162,10 +162,18 @@ constexpr COLORREF kSidebar = RGB(20, 20, 23);
 
 constexpr int kColorCount = 7;
 const wchar_t* const kColorNames[kColorCount] = {L"FPS", L"CPU", L"GPU", L"RAM", T(L"Batteria"), T(L"Testo"), T(L"Sfondo")};
-constexpr int kShowCount = 9;
-const wchar_t* const kShowNames[kShowCount] = {L"FPS",   T(L"Mini-grafico FPS"), L"Frame time",
-                                                   L"P95 / P99", L"Stutter %",        L"CPU",
-                                                   L"GPU",   L"RAM",              T(L"Batteria (solo portatili)")};
+constexpr int kShowCount = 11;
+const wchar_t* const kShowNames[kShowCount] = {L"FPS",
+                                               T(L"Mini-grafico FPS"),
+                                               T(L"Limitato da (CPU / GPU)"),
+                                               L"Frame time",
+                                               T(L"Grafico frame time"),
+                                               L"P95 / P99",
+                                               L"Stutter %",
+                                               L"CPU",
+                                               L"GPU",
+                                               L"RAM",
+                                               T(L"Batteria (solo portatili)")};
 
 Color& ColorRef(Profile& p, int i) {
   auto& c = p.colors;
@@ -175,8 +183,8 @@ Color& ColorRef(Profile& p, int i) {
 
 bool& ShowRef(Profile& p, int i) {
   auto& s = p.show;
-  bool* all[kShowCount] = {&s.fps, &s.graph, &s.frametime, &s.percentiles, &s.stutter,
-                           &s.cpu, &s.gpu,   &s.ram,       &s.battery};
+  bool* all[kShowCount] = {&s.fps,     &s.graph, &s.bottleneck, &s.frametime, &s.frameGraph, &s.percentiles,
+                           &s.stutter, &s.cpu,   &s.gpu,        &s.ram,       &s.battery};
   return *all[i];
 }
 
@@ -1131,7 +1139,7 @@ void BuildUi() {
 
   // 2 · Elementi e sensori (profilo selezionato)
   g_buildPage = 2;
-  Panel(T(L"Elementi visibili"), 248, 116, 350, 266);
+  Panel(T(L"Elementi visibili"), 248, 116, 350, 322);
   for (int i = 0; i < kShowCount; ++i) Check(IDC_SHOW + i, kShowNames[i], 264, 126 + i * 28, 320);
   Panel(T(L"Colori overlay"), 618, 116, 358, 160);
   for (int i = 0; i < kColorCount; ++i)

@@ -1,5 +1,6 @@
 #include "monitor/overlay_content.h"
 
+#include <algorithm>
 #include <format>
 #include <utility>
 
@@ -73,12 +74,28 @@ void AddFps(Builder& b, const ContentInput& in, bool vertical, bool includeGraph
     b.Value(in.frameSourceAvailable ? L"—" : L"n/d", p.colors.fps, vertical ? 2.0f : 1.0f);
     return;
   }
+  // Con la frame generation il numero grande è quello che arriva sullo schermo (frame veri + generati).
+  const bool frameGen = f.fpsGenerated > 0;
+  const double shown = frameGen ? f.fpsDisplayed : f.fps;
   if (p.Field("fps", "value"))
-    b.Colored(std::format(L"{:.0f}", f.fps), FpsColor(p, f.fps), vertical ? 2.0f : 1.0f, true);
+    b.Colored(std::format(L"{:.0f}", shown), FpsColor(p, shown), vertical ? 2.0f : 1.0f, true);
+  if (frameGen && p.Field("fps", "real")) {  // quanti di quei frame li ha disegnati davvero il gioco
+    b.Label(T(L"  REALI "), p.colors.fps);
+    b.Value(std::format(L"{:.0f}", f.fpsReal), p.colors.fps, 0.85f);
+  }
   if (p.Field("fps", "minmax")) b.Value(std::format(L" ↓{:.0f} ↑{:.0f}", f.fpsMin, f.fpsMax), p.colors.fps, 0.7f);
   if (p.Field("fps", "low1") && f.p99Ms > 0) {  // 1% low = FPS equivalente al 99° percentile del frame time
     b.Label(L"  1%L ", p.colors.fps);
     b.Value(std::format(L"{:.0f}", 1000.0 / f.p99Ms), p.colors.fps, 0.85f);
+  }
+  if (p.show.bottleneck && p.Field("fps", "limit") && in.limit != Limit::Unknown) {
+    b.Label(L"  LIM ", p.colors.fps);
+    switch (in.limit) {
+      case Limit::Gpu: b.Colored(L"GPU", p.colors.gpu, 0.85f, true); break;
+      case Limit::Cpu: b.Colored(L"CPU", p.colors.cpu, 0.85f, true); break;
+      case Limit::VSync: b.Colored(L"V-SYNC", p.colors.text, 0.85f, true); break;
+      default: b.Colored(L"FPS", p.colors.text, 0.85f, true); break;  // limitatore di FPS
+    }
   }
   if (includeGraph && p.show.graph && !f.history.empty()) {
     b.Space();
@@ -119,6 +136,17 @@ void AddFrameTiming(Builder& b, const ContentInput& in, bool block = false) {
     gap();
     b.Label(L"ST ", p.colors.fps);
     b.Value(std::format(L"{:.1f}%", f.stutterPct), p.colors.fps);
+  }
+  if (p.show.frameGraph && p.Field("frametime", "graph") && f.frameTimes.size() >= 2) {
+    // Tempo di ogni frame: al massimo cento punti, ognuno è il frame più lungo del suo tratto, così gli scatti restano.
+    const size_t points = std::min<size_t>(100, f.frameTimes.size());
+    std::vector<float> g(points, 0.0f);
+    for (size_t i = 0; i < f.frameTimes.size(); ++i) {
+      float& slot = g[i * points / f.frameTimes.size()];
+      slot = std::max(slot, f.frameTimes[i]);
+    }
+    gap();
+    b.Graph(g, p.colors.fps, 1.0f);
   }
 }
 
@@ -270,7 +298,8 @@ std::vector<Row> BuildRows(const ContentInput& in) {
   }
 
   const bool showFps = game && p.show.fps;
-  const bool showTiming = game && !in.fpsOnly && (p.show.frametime || p.show.percentiles || p.show.stutter);
+  const bool showTiming =
+      game && !in.fpsOnly && (p.show.frametime || p.show.percentiles || p.show.stutter || p.show.frameGraph);
   const bool showSystem = !in.fpsOnly && s.ready;
 
   if (vertical) {

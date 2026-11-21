@@ -25,6 +25,8 @@ struct GameEntry {
 
 struct ShowFlags {
   bool fps = true, graph = true, frametime = true, percentiles = false, stutter = false;
+  bool bottleneck = false;  // "LIM": che cosa limita gli FPS (GPU, CPU, limitatore, V-Sync)
+  bool frameGraph = false;  // grafico del tempo di ogni frame
   bool cpu = true, gpu = true, ram = true, battery = true;
 };
 
@@ -76,10 +78,15 @@ inline constexpr LayoutField kLayoutFields[] = {
     {"fps", "value", L"Framerate", true},
     {"fps", "minmax", L"Minimo / massimo  (↓ ↑)", true},
     {"fps", "low1", L"1% low", false},
+    {"fps", "limit", L"Limitato da (CPU / GPU)", true},
+    {"fps", "real", L"FPS reali (frame generation)", true},
     {"frametime", "value", L"Frame time (ms)", true},
-    {"frametime", "p95", L"P95", false},
-    {"frametime", "p99", L"P99", false},
-    {"frametime", "stutter", L"Stutter %", false},
+    // P95, P99, stutter, "limitato da" e grafico hanno anche una spunta in Elementi visibili: lì si accendono,
+    // qui sono attivi in partenza (altrimenti la spunta da sola non mostrerebbe niente).
+    {"frametime", "p95", L"P95", true},
+    {"frametime", "p99", L"P99", true},
+    {"frametime", "stutter", L"Stutter %", true},
+    {"frametime", "graph", L"Grafico frame time", true},
     {"cpu", "usage", L"Utilizzo totale", true},
     {"cpu", "topcore", L"Core più carico", true},
     {"cpu", "temp", L"Temperatura", true},

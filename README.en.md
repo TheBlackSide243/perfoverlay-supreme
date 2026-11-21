@@ -52,6 +52,8 @@ It is a single file, `PerfOverlaySupreme.exe`. There is no installer, and **noth
   - card VRAM and the VRAM used by the game alone;
   - optional: HWiNFO, or [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), which the app can download in one click for CPU temperature.
 - **Exclusive fullscreen notice**: when a game uses it (the overlay can't show there) a notification suggests borderless mode.
+- **What limits your FPS**: next to the FPS the overlay can tell whether the bottleneck is the GPU, the CPU, an FPS cap or V-Sync.
+- **Frame time graph** and **real FPS with frame generation**: stutters show up frame by frame; with AMD FSR, AFMF or Intel XeSS-FG the overlay separates the frames drawn by the game from the generated ones.
 - **Benchmarks**: Ctrl+Shift+B records the game's performance (average FPS, 1% and 0.1% lows, stutter, usage and temperatures, every frame time in a CSV), and you can compare two recordings with numbers and a graph.
 - **Summary of every session**: when you close a game, a notification tells you how long you played, with average FPS, 1% low and peak temperatures; the history stays in the Benchmark section.
 - **Built-in DirectX 11/12 test scene**, so you can try the overlay without launching a game.
@@ -115,7 +117,8 @@ PerfOverlay Supreme does not inject DLLs, does not read or write game memory, an
 ## Known limitations
 
 - The overlay is not visible in *exclusive* fullscreen. Use "borderless window" mode (the app warns you with a notification).
-- Reflex/PresentMon latency values in RTSS presets show N/A.
+- Reflex/PresentMon latency values in RTSS presets show N/A: latency is not measured.
+- NVIDIA frame generation (DLSS) does not report its generated frames, so there the overlay only shows total FPS.
 - CPU temperature needs HWiNFO or LibreHardwareMonitor, because Windows does not expose it without a driver.
 - Full GPU data is only available on NVIDIA (through NVML). AMD and Intel GPUs need HWiNFO or LibreHardwareMonitor.
 

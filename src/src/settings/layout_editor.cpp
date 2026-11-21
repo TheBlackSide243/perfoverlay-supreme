@@ -168,6 +168,8 @@ bool& Visible(Profile& p, const std::string& el) {
 bool FieldOn(const Profile& p, const std::string& el, std::string_view key) {
   if (el == "frametime" && (key == "p95" || key == "p99")) return p.show.percentiles && p.Field(el, key);
   if (el == "frametime" && key == "stutter") return p.show.stutter && p.Field(el, key);
+  if (el == "frametime" && key == "graph") return p.show.frameGraph && p.Field(el, key);
+  if (el == "fps" && key == "limit") return p.show.bottleneck && p.Field(el, key);
   return p.Field(el, key);
 }
 
@@ -175,6 +177,8 @@ void SetFieldOn(Profile& p, const std::string& el, std::string_view key, bool on
   p.SetField(el, key, on);
   if (on && el == "frametime" && (key == "p95" || key == "p99")) p.show.percentiles = true;
   if (on && el == "frametime" && key == "stutter") p.show.stutter = true;
+  if (on && el == "frametime" && key == "graph") p.show.frameGraph = true;
+  if (on && el == "fps" && key == "limit") p.show.bottleneck = true;
 }
 
 std::vector<const LayoutField*> FieldsOf(const std::string& el) {
@@ -223,6 +227,7 @@ std::vector<Piece> Sample(const Profile& p, const std::string& el) {
     if (on("value")) add({{L"144", c, 1.0f, true}});
     if (on("minmax")) add({{L" ↓138 ↑151", c, 0.7f}});
     if (on("low1")) add({label(L"  1%L ", p.colors.fps), {L"121", c, 0.85f}});
+    if (on("limit")) add({label(L"  LIM ", p.colors.fps), {L"GPU", Cr(p.colors.gpu), 0.85f, true}});
   } else if (el == "frametime") {
     const COLORREF c = val(p.colors.fps);
     if (on("value")) add({{L"6.9", c}, {L"ms", c, 0.72f}});
@@ -230,6 +235,7 @@ std::vector<Piece> Sample(const Profile& p, const std::string& el) {
     if (on("p99")) add({label(v.empty() ? L"P99 " : L"  P99 ", p.colors.fps), {L"9.1", c}});
     if (on("p95") || on("p99")) add({{L"ms", c, 0.72f}});
     if (on("stutter")) add({label(v.empty() ? L"ST " : L"  ST ", p.colors.fps), {L"0.4%", c}});
+    if (on("graph")) add({{v.empty() ? L"▁▂▁▁▆▁▂▁" : L"  ▁▂▁▁▆▁▂▁", c, 0.9f}});  // posto occupato dal grafico
     if (v.empty()) add({{T(L"(nessun campo)"), RGB(150, 150, 162), 0.8f}});
   } else if (el == "cpu") {
     const COLORREF c = val(p.colors.cpu);
